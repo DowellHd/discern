@@ -1,0 +1,58 @@
+# configs/documents.yaml
+# Source of truth for synthetic generation, model field classes,
+# evaluation, DB columns, and UI rendering. Swap this file to retarget the domain.
+document_types:
+  connection_card:
+    description: Welcome/connect card filled out during a service
+    fields:
+      - name: full_name
+        value_type: string
+        capture: handwritten
+        required: true
+      - name: visit_type
+        value_type: enum
+        options: [first_time, returning, regular]
+        capture: checkbox
+        required: true
+      - name: email
+        value_type: email
+        capture: handwritten
+      - name: phone
+        value_type: phone
+        capture: handwritten
+      - name: service_date
+        value_type: date
+        capture: handwritten
+      - name: interests
+        value_type: multiselect
+        options: [baptism, community_group, volunteering, prayer, membership]
+        capture: checkbox
+      - name: notes
+        value_type: freetext
+        capture: handwritten
+  prayer_request:
+    description: Prayer request card
+    fields:
+      - name: requester_name
+        value_type: string
+        capture: handwritten
+        nullable: true            # may be left anonymous
+      - name: service_date
+        value_type: date
+        capture: handwritten
+      - name: category
+        value_type: enum
+        options: [healing, family, guidance, thanksgiving, other]
+        capture: checkbox
+      - name: request_text
+        value_type: freetext
+        capture: handwritten
+        sensitive: true           # mask in logs and the metrics report
+      - name: contact_ok
+        value_type: bool
+        capture: checkbox
+# Bulletins are semi-structured: detect blocks/regions, not fixed fields.
+region_types:
+  bulletin:
+    description: Weekly program; layout/block detection rather than fixed fields
+    blocks: [header, service_date, announcement, event, giving_note, scripture_block]

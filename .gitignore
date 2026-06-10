@@ -1,0 +1,65 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+*.egg-info/
+dist/
+build/
+.eggs/
+*.egg
+.venv/
+venv/
+env/
+.env
+.env.*
+!.env.example
+
+# mypy / ruff
+.mypy_cache/
+.ruff_cache/
+
+# pytest
+.pytest_cache/
+htmlcov/
+.coverage
+coverage.xml
+
+# Data — NEVER commit real data or uploads
+real-data/
+uploads/
+data/raw/
+data/processed/
+
+# Model artifacts
+checkpoints/
+*.pt
+*.pth
+*.ckpt
+*.onnx
+
+# Experiment tracking
+mlruns/
+wandb/
+*.csv
+
+# Frontend
+frontend/node_modules/
+frontend/.next/
+frontend/out/
+frontend/.env.local
+frontend/.env.production
+
+# Docker
+docker/postgres-data/
+
+# OS
+.DS_Store
+Thumbs.db
+*.swp
+*.swo
+
+# IDE
+.idea/
+.vscode/
+*.code-workspace
