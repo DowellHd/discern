@@ -30,6 +30,7 @@ real-data/
 uploads/
 data/raw/
 data/processed/
+data/synthetic/
 
 # Model artifacts
 checkpoints/
