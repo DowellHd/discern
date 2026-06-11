@@ -121,7 +121,7 @@ API available at `http://localhost:8000`. Docs at `http://localhost:8000/docs`.
 | 3 | Model + training loop + checkpoints | ✅ |
 | 4 | Inference + FastAPI + Postgres | ✅ |
 | 5 | Eval harness + metrics report | ✅ |
-| 6 | Next.js UI | ⬜ |
+| 6 | Next.js UI | ✅ |
 | 7 | Docker + full deployment docs | ⬜ |
 
 ---
