@@ -118,9 +118,9 @@ Handwritten field values are **not extracted** by the current model (OCR head no
 
 | Capture type | Precision | Recall | F1 | CER | WER | p50 latency | p95 latency |
 |---|---|---|---|---|---|---|---|
-| handwritten | 1.000 | 0.009 | 0.018 | 1.000 | 1.000 | 574 ms | 741 ms |
-| checkbox | 0.800 | 0.400 | 0.533 | — | — | 574 ms | 741 ms |
-| **overall** | **0.807** | **0.139** | **0.238** | 1.000 | 1.000 | 574 ms | 741 ms |
+| handwritten | 1.000 | 0.009 | 0.018 | 1.000 | 1.000 | 2157 ms | 5867 ms |
+| checkbox | 0.963 | 0.963 | 0.963 | — | — | 2157 ms | 5886 ms |
+| **overall** | **0.964** | **0.327** | **0.489** | 1.000 | 1.000 | 2157 ms | 5867 ms |
 
 > Latency is CPU inference on an M-series Mac. GPU inference would be ~10× faster.
 

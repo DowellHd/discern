@@ -3,13 +3,13 @@
   "overall": {
     "capture": "overall",
     "n_fields": 1800,
-    "precision": 0.8071,
-    "recall": 0.1394,
-    "f1": 0.2378,
+    "precision": 0.964,
+    "recall": 0.3272,
+    "f1": 0.4886,
     "cer": 1.0,
     "wer": 1.0,
-    "p50_latency_ms": 573.9,
-    "p95_latency_ms": 741.4
+    "p50_latency_ms": 2156.9,
+    "p95_latency_ms": 5867.1
   },
   "by_capture": {
     "handwritten": {
@@ -20,19 +20,19 @@
       "f1": 0.0182,
       "cer": 1.0,
       "wer": 1.0,
-      "p50_latency_ms": 573.9,
-      "p95_latency_ms": 741.4
+      "p50_latency_ms": 2156.9,
+      "p95_latency_ms": 5867.1
     },
     "checkbox": {
       "capture": "checkbox",
       "n_fields": 600,
-      "precision": 0.8,
-      "recall": 0.4,
-      "f1": 0.5333,
+      "precision": 0.9633,
+      "recall": 0.9633,
+      "f1": 0.9633,
       "cer": 0.0,
       "wer": 0.0,
-      "p50_latency_ms": 573.9,
-      "p95_latency_ms": 741.4
+      "p50_latency_ms": 2156.9,
+      "p95_latency_ms": 5885.7
     }
   }
 }
