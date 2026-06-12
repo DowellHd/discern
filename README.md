@@ -114,13 +114,13 @@ make eval        # writes reports/eval.json + reports/eval.md
 ## Eval Results
 
 Evaluated on 300 held-out synthetic samples (150 per doc type, seed=999).
-Handwritten field values are **not extracted** by the current model (OCR head not implemented); CER/WER = 1.0 reflects this gap. Checkbox classification achieves F1 = 0.53 after 1 training epoch without pretrained weights.
+Handwritten field values are **not extracted** by the current model (OCR head not implemented); CER/WER = 1.0 reflects this gap. Checkbox classification achieves F1 = 1.000 after 10 training epochs.
 
 | Capture type | Precision | Recall | F1 | CER | WER | p50 latency | p95 latency |
 |---|---|---|---|---|---|---|---|
-| handwritten | 1.000 | 0.009 | 0.018 | 1.000 | 1.000 | 2157 ms | 5867 ms |
-| checkbox | 0.963 | 0.963 | 0.963 | — | — | 2157 ms | 5886 ms |
-| **overall** | **0.964** | **0.327** | **0.489** | 1.000 | 1.000 | 2157 ms | 5867 ms |
+| handwritten | 1.000 | 0.009 | 0.018 | 1.000 | 1.000 | 301 ms | 353 ms |
+| checkbox | 1.000 | 1.000 | 1.000 | — | — | 301 ms | 359 ms |
+| **overall** | **1.000** | **0.339** | **0.507** | 1.000 | 1.000 | 301 ms | 353 ms |
 
 > Latency is CPU inference on an M-series Mac. GPU inference would be ~10× faster.
 
