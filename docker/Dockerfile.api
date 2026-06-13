@@ -7,11 +7,15 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     libgl1 libglib2.0-0 libsm6 libxext6 libxrender-dev \
     && rm -rf /var/lib/apt/lists/*
 
-COPY pyproject.toml .
-RUN pip install --no-cache-dir -e ".[dev]" --extra-index-url https://download.pytorch.org/whl/cpu
+RUN pip install --no-cache-dir poetry
 
+# Install dependencies first (layer-cache friendly)
+COPY pyproject.toml poetry.lock ./
+RUN POETRY_VIRTUALENVS_CREATE=false poetry install --only main --no-root
+
+# Install the discern package itself
 COPY . .
-RUN pip install --no-cache-dir -e .
+RUN POETRY_VIRTUALENVS_CREATE=false poetry install --only main
 
 EXPOSE 8000
 

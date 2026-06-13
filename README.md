@@ -51,7 +51,8 @@ discern/
 
 ```bash
 python -m venv .venv && source .venv/bin/activate
-pip install -e ".[dev]"
+pip install poetry
+POETRY_VIRTUALENVS_CREATE=false poetry install
 pre-commit install
 make verify          # lint + typecheck + tests + eval
 ```
@@ -161,7 +162,7 @@ Handwritten field values are **not extracted** by the current model (OCR head no
 
 1. In Render: **New Web Service** → connect this repo.
 2. Set **Root Directory** to `.` (repo root).
-3. **Build command:** `pip install -e .`
+3. **Build command:** `pip install poetry && POETRY_VIRTUALENVS_CREATE=false poetry install --only main`
 4. **Start command:** `uvicorn discern.api.app:app --host 0.0.0.0 --port $PORT`
 5. Add a **Postgres** database on Render; copy the internal `DATABASE_URL`.
 6. Set env vars on the web service:

@@ -5,7 +5,7 @@
 # ---------------------------------------------------------------------------
 
 install:
-	pip install -e ".[dev]"
+	POETRY_VIRTUALENVS_CREATE=false poetry install
 	pre-commit install
 
 lint:
