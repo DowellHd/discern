@@ -26,6 +26,10 @@ class Settings(BaseSettings):
         default="postgresql://discern:discern@localhost:5432/discern",
         validation_alias=AliasChoices("DISCERN_DATABASE_URL", "DATABASE_URL"),
     )
+    # Comma-separated list of allowed CORS origins. Set DISCERN_CORS_ORIGINS on Render.
+    cors_origins: list[str] = Field(
+        default=["https://discern.dowellstandley.com", "http://localhost:3000"],
+    )
 
     model_config = {"env_prefix": "DISCERN_", "env_file": ".env", "extra": "ignore"}
 

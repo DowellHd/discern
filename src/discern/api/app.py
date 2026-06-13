@@ -8,6 +8,7 @@ from pathlib import Path
 
 import structlog
 from fastapi import Depends, FastAPI, File, HTTPException, Query, UploadFile
+from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import Response
 from PIL import Image
 from sqlalchemy.orm import Session
@@ -25,6 +26,13 @@ app = FastAPI(
     title="Discern",
     description="Extracts structured data from paper church records.",
     version="0.1.0",
+)
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=settings.cors_origins,
+    allow_methods=["GET", "POST"],
+    allow_headers=["*"],
 )
 
 
