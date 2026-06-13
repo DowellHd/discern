@@ -51,14 +51,23 @@
 
 /* ─── Base ────────────────────────────────────────────── */
 
+/* Force light mode — prevents browser dark-mode UA stylesheet bleed */
 html {
+  color-scheme: light;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   text-rendering: optimizeLegibility;
 }
 
+/* Hardcode here, not just via Tailwind class, so nothing can override */
+body {
+  background-color: #f1f5f9;
+  color: #1e293b;
+  font-family: var(--font-sans);
+}
+
 :focus-visible {
-  outline: 2px solid var(--color-brand-500);
+  outline: 2px solid #6366f1;
   outline-offset: 2px;
   border-radius: 3px;
 }

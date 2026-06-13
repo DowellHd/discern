@@ -162,15 +162,17 @@ export function UploadZone({ onFile, loading, warmingUp }: Props) {
   return (
     <div className="space-y-2">
       <label
-        className={`
-          flex flex-col items-center justify-center w-full cursor-pointer
-          border-2 border-dashed rounded-2xl transition-all duration-150
-          ${dragging
-            ? "border-indigo-400 bg-indigo-50 scale-[1.01]"
-            : "border-slate-300 bg-white hover:border-indigo-300 hover:bg-slate-50/70"
-          }
-        `}
-        style={{ minHeight: 200 }}
+        className="block w-full cursor-pointer rounded-2xl transition-all duration-200"
+        style={{
+          background: dragging
+            ? "linear-gradient(135deg, #eef2ff 0%, #e0e7ff 100%)"
+            : "#ffffff",
+          border: dragging ? "2px dashed #6366f1" : "2px dashed #cbd5e1",
+          transform: dragging ? "scale(1.01)" : "scale(1)",
+          boxShadow: dragging
+            ? "0 8px 24px rgba(99,102,241,0.15)"
+            : "0 1px 3px rgba(0,0,0,0.06)",
+        }}
         onDragOver={(e) => { e.preventDefault(); setDragging(true); }}
         onDragLeave={() => setDragging(false)}
         onDrop={handleDrop}
@@ -187,31 +189,50 @@ export function UploadZone({ onFile, loading, warmingUp }: Props) {
           }}
         />
 
-        <div
-          className={`flex flex-col items-center gap-3 px-6 py-10 text-center transition-transform duration-150 ${dragging ? "scale-105" : ""}`}
-        >
+        <div className="flex flex-col items-center gap-4 px-6 py-10 text-center">
+          {/* Icon */}
           <div
-            className={`w-12 h-12 rounded-xl flex items-center justify-center transition-colors ${dragging ? "bg-indigo-100" : "bg-slate-100"}`}
+            className="w-14 h-14 rounded-2xl flex items-center justify-center transition-all duration-200"
+            style={{
+              background: dragging
+                ? "linear-gradient(135deg, #818cf8, #6366f1)"
+                : "linear-gradient(135deg, #f1f5f9, #e2e8f0)",
+              boxShadow: dragging ? "0 4px 12px rgba(99,102,241,0.3)" : "none",
+            }}
           >
             <svg
-              className={`w-6 h-6 transition-colors ${dragging ? "text-indigo-500" : "text-slate-400"}`}
+              className="w-6 h-6 transition-colors duration-200"
+              style={{ color: dragging ? "#ffffff" : "#94a3b8" }}
               fill="none" stroke="currentColor" viewBox="0 0 24 24"
               aria-hidden="true"
             >
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5}
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.75}
                 d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5m-13.5-9L12 3m0 0l4.5 4.5M12 3v13.5" />
             </svg>
           </div>
 
           {dragging ? (
-            <p className="text-sm font-semibold text-indigo-600">Drop to upload</p>
+            <p className="text-sm font-bold" style={{ color: "#4f46e5" }}>Drop to upload</p>
           ) : (
-            <div className="space-y-1">
-              <p className="text-sm font-semibold text-slate-700">
+            <div className="space-y-2">
+              <p className="text-sm font-semibold" style={{ color: "#334155" }}>
                 Drag &amp; drop or{" "}
-                <span className="text-indigo-600 underline underline-offset-2 decoration-dotted">browse files</span>
+                <span style={{ color: "#4f46e5", textDecoration: "underline", textDecorationStyle: "dotted", textUnderlineOffset: 3 }}>
+                  browse files
+                </span>
               </p>
-              <p className="text-xs text-slate-400">PNG, JPEG, TIFF · max 20 MB</p>
+              <div className="flex items-center justify-center gap-1.5">
+                {["PNG", "JPEG", "TIFF"].map((fmt) => (
+                  <span
+                    key={fmt}
+                    className="text-[10px] font-bold uppercase tracking-wide px-1.5 py-0.5 rounded"
+                    style={{ background: "#f1f5f9", color: "#94a3b8" }}
+                  >
+                    {fmt}
+                  </span>
+                ))}
+                <span className="text-[11px]" style={{ color: "#cbd5e1" }}>· max 20 MB</span>
+              </div>
             </div>
           )}
         </div>
@@ -220,12 +241,13 @@ export function UploadZone({ onFile, loading, warmingUp }: Props) {
       {validationError && (
         <div
           role="alert"
-          className="flex items-start gap-2 bg-red-50 border border-red-200 rounded-xl px-3 py-2.5 animate-fade-up"
+          className="flex items-start gap-2 rounded-xl px-3 py-2.5 animate-fade-up"
+          style={{ background: "#fef2f2", border: "1px solid #fecaca" }}
         >
-          <svg className="w-4 h-4 flex-shrink-0 mt-0.5 text-red-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+          <svg className="w-4 h-4 flex-shrink-0 mt-0.5" style={{ color: "#f87171" }} fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
           </svg>
-          <span className="text-xs text-red-700">{validationError}</span>
+          <span className="text-xs" style={{ color: "#b91c1c" }}>{validationError}</span>
         </div>
       )}
     </div>

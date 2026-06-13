@@ -43,40 +43,41 @@ export default function Home() {
   return (
     <div className="min-h-screen flex flex-col">
       {/* ── Header ────────────────────────────────────────── */}
-      <header className="sticky top-0 z-20 h-14 bg-slate-900 border-b border-white/5 flex items-center px-4 sm:px-6 gap-4">
+      <header className="sticky top-0 z-20 flex items-center px-4 sm:px-6 gap-4" style={{ height: 56, background: "#0f172a", borderBottom: "1px solid rgba(255,255,255,0.06)" }}>
         {/* Brand mark */}
-        <a href="/" className="flex items-center gap-2.5 flex-shrink-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-400 rounded-lg">
+        <a href="/" className="flex items-center gap-2.5 flex-shrink-0 rounded-lg outline-none focus-visible:ring-2 focus-visible:ring-indigo-400">
           <div
-            className="w-8 h-8 rounded-xl flex items-center justify-center flex-shrink-0 select-none"
-            style={{ background: "linear-gradient(135deg, #6366f1 0%, #4338ca 100%)" }}
+            className="w-8 h-8 rounded-xl flex items-center justify-center flex-shrink-0 select-none shadow-lg"
+            style={{ background: "linear-gradient(135deg, #818cf8 0%, #4f46e5 100%)" }}
             aria-hidden="true"
           >
             <span className="text-white font-bold text-sm tracking-tight">D</span>
           </div>
           <div className="flex items-baseline gap-2">
-            <span className="text-white font-bold text-[15px] tracking-tight">Discern</span>
-            <span className="hidden sm:block text-slate-500 text-xs font-medium">Document Intelligence</span>
+            <span className="font-bold text-[15px] tracking-tight" style={{ color: "#f1f5f9" }}>Discern</span>
+            <span className="hidden sm:block text-xs font-medium" style={{ color: "#475569" }}>Document Intelligence</span>
           </div>
         </a>
 
-        {/* Nav */}
-        <nav
-          className="ml-auto flex items-center gap-0.5 bg-slate-800/70 rounded-xl p-1"
-          aria-label="Main navigation"
-        >
+        {/* Nav — inline styles so nothing can interfere with visibility */}
+        <nav className="ml-auto flex items-center gap-1" aria-label="Main navigation" style={{ background: "rgba(255,255,255,0.07)", borderRadius: 12, padding: 4 }}>
           {(["upload", "search"] as const).map((t) => (
             <button
               key={t}
               onClick={() => setTab(t)}
               aria-current={tab === t ? "page" : undefined}
-              className={`
-                px-3.5 py-1.5 rounded-lg text-sm font-medium transition-all duration-150 outline-none
-                focus-visible:ring-2 focus-visible:ring-indigo-400
-                ${tab === t
-                  ? "bg-white text-slate-900 shadow-sm"
-                  : "text-slate-400 hover:text-slate-200 hover:bg-slate-700/50"
-                }
-              `}
+              className="outline-none focus-visible:ring-2 focus-visible:ring-indigo-400 transition-all duration-150"
+              style={{
+                padding: "6px 14px",
+                borderRadius: 8,
+                fontSize: 13,
+                fontWeight: 600,
+                background: tab === t ? "#ffffff" : "transparent",
+                color: tab === t ? "#0f172a" : "#94a3b8",
+                boxShadow: tab === t ? "0 1px 3px rgba(0,0,0,0.15)" : "none",
+                border: "none",
+                cursor: "pointer",
+              }}
             >
               {t === "upload" ? "Extract" : "Search"}
             </button>
@@ -86,20 +87,20 @@ export default function Home() {
 
       {/* ── Body ──────────────────────────────────────────── */}
       <main
-        className="flex flex-1 w-full max-w-6xl mx-auto px-4 sm:px-6 py-8 gap-8 flex-col sm:flex-row"
+        className="flex flex-1 w-full max-w-6xl mx-auto px-4 sm:px-6 py-8 gap-6 flex-col sm:flex-row"
         role="main"
       >
         {/* Left panel */}
         <aside
-          className="w-full sm:w-80 lg:w-96 flex-shrink-0 flex flex-col gap-5"
+          className="w-full sm:w-80 lg:w-88 flex-shrink-0 flex flex-col gap-4"
           aria-label="Controls"
         >
           {tab === "upload" ? (
             <>
-              <div>
-                <h1 className="text-xl font-bold text-slate-900 tracking-tight">Upload Document</h1>
-                <p className="text-sm text-slate-500 mt-1 leading-relaxed">
-                  Upload a photo or scan of a connection card or prayer request.
+              <div className="px-1">
+                <h1 className="text-lg font-bold tracking-tight" style={{ color: "#0f172a" }}>Upload Document</h1>
+                <p className="text-sm mt-0.5 leading-relaxed" style={{ color: "#64748b" }}>
+                  Photo or scan of a connection card or prayer request.
                 </p>
               </div>
 
@@ -127,9 +128,9 @@ export default function Home() {
             </>
           ) : (
             <>
-              <div>
-                <h1 className="text-xl font-bold text-slate-900 tracking-tight">Search Records</h1>
-                <p className="text-sm text-slate-500 mt-1 leading-relaxed">
+              <div className="px-1">
+                <h1 className="text-lg font-bold tracking-tight" style={{ color: "#0f172a" }}>Search Records</h1>
+                <p className="text-sm mt-0.5 leading-relaxed" style={{ color: "#64748b" }}>
                   Search across all extracted documents.
                 </p>
               </div>
@@ -158,17 +159,40 @@ export default function Home() {
 
 function EmptyResultState() {
   return (
-    <div className="h-full min-h-72 flex items-center justify-center">
-      <div className="text-center space-y-4 animate-fade-up">
-        <div className="mx-auto w-16 h-16 rounded-2xl bg-white border border-slate-200 shadow-sm flex items-center justify-center">
-          <svg className="w-8 h-8 text-slate-300" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5}
-              d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-          </svg>
+    <div className="h-full min-h-72 flex items-center justify-center rounded-2xl animate-fade-up"
+      style={{ background: "rgba(255,255,255,0.5)", border: "1.5px dashed #e2e8f0" }}>
+      <div className="text-center space-y-5 py-12 px-8">
+        {/* Stack of document cards illustration */}
+        <div className="relative mx-auto w-20 h-20">
+          <div className="absolute inset-0 rounded-2xl rotate-6" style={{ background: "#e0e7ff", border: "1px solid #c7d2fe" }} />
+          <div className="absolute inset-0 rounded-2xl rotate-2" style={{ background: "#eef2ff", border: "1px solid #c7d2fe" }} />
+          <div className="absolute inset-0 rounded-2xl flex items-center justify-center" style={{ background: "#ffffff", border: "1px solid #e2e8f0", boxShadow: "0 4px 12px rgba(0,0,0,0.08)" }}>
+            <svg className="w-9 h-9" style={{ color: "#a5b4fc" }} fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5}
+                d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+            </svg>
+          </div>
         </div>
-        <div className="space-y-1">
-          <p className="text-sm font-semibold text-slate-500">No document extracted yet</p>
-          <p className="text-xs text-slate-400">Upload an image to see extracted fields here</p>
+
+        <div className="space-y-1.5">
+          <p className="text-base font-bold" style={{ color: "#334155" }}>No document extracted yet</p>
+          <p className="text-sm" style={{ color: "#94a3b8" }}>Upload a connection card or prayer request<br />to see structured fields appear here</p>
+        </div>
+
+        {/* Workflow hint */}
+        <div className="flex items-center justify-center gap-3 pt-1">
+          {["Upload", "Extract", "Search"].map((step, i) => (
+            <div key={step} className="flex items-center gap-3">
+              <div className="flex items-center gap-1.5">
+                <div className="w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-bold"
+                  style={{ background: "#e0e7ff", color: "#6366f1" }}>
+                  {i + 1}
+                </div>
+                <span className="text-[11px] font-semibold" style={{ color: "#94a3b8" }}>{step}</span>
+              </div>
+              {i < 2 && <div className="w-4 h-px" style={{ background: "#e2e8f0" }} />}
+            </div>
+          ))}
         </div>
       </div>
     </div>
