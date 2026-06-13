@@ -1,8 +1,139 @@
 @import "tailwindcss";
 
-body {
-  background: #f8fafc;
-  color: #1e293b;
-  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+@theme {
+  /* Typography — Inter via next/font sets --font-inter on <html> */
+  --font-sans: var(--font-inter), ui-sans-serif, system-ui, -apple-system, sans-serif;
+
+  /* Brand (indigo-anchored) */
+  --color-brand-50:  #eef2ff;
+  --color-brand-100: #e0e7ff;
+  --color-brand-200: #c7d2fe;
+  --color-brand-400: #818cf8;
+  --color-brand-500: #6366f1;
+  --color-brand-600: #4f46e5;
+  --color-brand-700: #4338ca;
+  --color-brand-900: #312e81;
+
+  /* Navy shell */
+  --color-navy-950: #050c1a;
+  --color-navy-900: #0f172a;
+  --color-navy-800: #1e2d45;
+  --color-navy-700: #243348;
+
+  /* Status */
+  --color-ok-50:   #ecfdf5;
+  --color-ok-100:  #d1fae5;
+  --color-ok-600:  #059669;
+  --color-ok-700:  #047857;
+
+  --color-warn-50:  #fffbeb;
+  --color-warn-100: #fef3c7;
+  --color-warn-600: #d97706;
+  --color-warn-700: #b45309;
+
+  --color-err-50:  #fef2f2;
+  --color-err-100: #fee2e2;
+  --color-err-600: #dc2626;
+  --color-err-700: #b91c1c;
+
+  /* Elevation */
+  --shadow-card:     0 1px 3px 0 rgb(0 0 0 / 0.07), 0 1px 2px -1px rgb(0 0 0 / 0.04);
+  --shadow-elevated: 0 4px 8px -2px rgb(0 0 0 / 0.08), 0 2px 4px -2px rgb(0 0 0 / 0.04);
+  --shadow-focus:    0 0 0 3px rgb(99 102 241 / 0.22);
+
+  /* Motion */
+  --ease-out:    cubic-bezier(0, 0, 0.2, 1);
+  --ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
+  --dur-fast:  100ms;
+  --dur-base:  180ms;
+  --dur-slow:  300ms;
+}
+
+/* ─── Base ────────────────────────────────────────────── */
+
+html {
   -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
+}
+
+:focus-visible {
+  outline: 2px solid var(--color-brand-500);
+  outline-offset: 2px;
+  border-radius: 3px;
+}
+
+/* ─── Keyframes ───────────────────────────────────────── */
+
+@keyframes fade-up {
+  from { opacity: 0; transform: translateY(7px); }
+  to   { opacity: 1; transform: translateY(0);   }
+}
+
+@keyframes scale-in {
+  from { opacity: 0; transform: scale(0.97); }
+  to   { opacity: 1; transform: scale(1);    }
+}
+
+@keyframes shimmer {
+  from { background-position: 200% center; }
+  to   { background-position: -200% center; }
+}
+
+@keyframes indeterminate {
+  0%   { transform: translateX(-100%) scaleX(0.6); }
+  50%  { transform: translateX(80%)   scaleX(0.3); }
+  100% { transform: translateX(260%)  scaleX(0.6); }
+}
+
+@keyframes gentle-pulse {
+  0%, 100% { opacity: 1;   }
+  50%       { opacity: 0.5; }
+}
+
+/* ─── Animation utilities ─────────────────────────────── */
+
+.animate-fade-up      { animation: fade-up  280ms var(--ease-out) both; }
+.animate-scale-in     { animation: scale-in 200ms var(--ease-out) both; }
+.animate-gentle-pulse { animation: gentle-pulse 2s ease-in-out infinite; }
+
+/* ─── Skeleton loader ─────────────────────────────────── */
+
+.skeleton {
+  background: linear-gradient(
+    90deg,
+    var(--color-slate-100) 25%,
+    var(--color-slate-200) 50%,
+    var(--color-slate-100) 75%
+  );
+  background-size: 200% 100%;
+  animation: shimmer 1.5s ease infinite;
+  border-radius: 6px;
+}
+
+/* ─── Indeterminate progress bar ──────────────────────── */
+
+.progress-track {
+  position: relative;
+  overflow: hidden;
+  background-color: var(--color-indigo-100);
+  border-radius: 9999px;
+}
+
+.progress-thumb {
+  position: absolute;
+  inset-block: 0;
+  width: 38%;
+  background-color: var(--color-indigo-500);
+  border-radius: 9999px;
+  animation: indeterminate 1.8s ease-in-out infinite;
+}
+
+/* ─── Card surface ────────────────────────────────────── */
+
+.card {
+  background: #ffffff;
+  border: 1px solid var(--color-slate-200);
+  border-radius: 16px;
+  box-shadow: var(--shadow-card);
 }
