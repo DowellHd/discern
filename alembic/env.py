@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import os
 from logging.config import fileConfig
 
 from sqlalchemy import engine_from_config, pool
@@ -12,6 +13,13 @@ from discern.db.models import Base
 
 config = context.config
 config.set_main_option("sqlalchemy.url", settings.database_url)
+
+# Allow Render (and other hosts) to inject DATABASE_URL without the DISCERN_ prefix.
+_raw_url = os.environ.get("DATABASE_URL")
+if _raw_url:
+    if _raw_url.startswith("postgres://"):
+        _raw_url = _raw_url.replace("postgres://", "postgresql://", 1)
+    config.set_main_option("sqlalchemy.url", _raw_url)
 
 if config.config_file_name is not None:
     fileConfig(config.config_file_name)
