@@ -52,3 +52,29 @@ def normalize(image: Image.Image) -> Image.Image:
 def preprocess(image: Image.Image) -> Image.Image:
     """Full pipeline: deskew → denoise → normalize."""
     return normalize(denoise(deskew(image)))
+
+
+def preprocess_for_ocr(image: Image.Image, max_dim: int = 1024) -> Image.Image:
+    """Preprocessing tuned for VLM/OCR input.
+
+    Keeps color (VLMs extract more signal from ink-on-paper contrast than
+    grayscale does) and applies CLAHE in LAB space for perceptual enhancement.
+    Returns a color PIL image scaled to at most max_dim on its longest side.
+    """
+    img = deskew(image).convert("RGB")
+
+    # Downscale if necessary — VLMs don't gain from >1024 px and it slows them down
+    w, h = img.size
+    if max(w, h) > max_dim:
+        scale = max_dim / max(w, h)
+        img = img.resize((int(w * scale), int(h * scale)), Image.Resampling.LANCZOS)
+
+    # Contrast enhancement in LAB space (only the L channel, preserving hue)
+    arr = np.array(img)
+    lab = cv2.cvtColor(arr, cv2.COLOR_RGB2LAB)
+    l_ch, a_ch, b_ch = cv2.split(lab)
+    clahe = cv2.createCLAHE(clipLimit=3.0, tileGridSize=(8, 8))
+    lab = cv2.merge([clahe.apply(l_ch), a_ch, b_ch])
+    result = cv2.cvtColor(lab, cv2.COLOR_LAB2RGB)
+
+    return Image.fromarray(result)

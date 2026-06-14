@@ -12,7 +12,7 @@ import torch.nn.functional as F
 import torchvision.transforms as T
 from PIL import Image
 
-from discern.data.preprocess import preprocess
+from discern.data.preprocess import preprocess, preprocess_for_ocr
 from discern.data.schema import DocumentSchema
 from discern.inference.ocr import extract_handwritten_fields
 from discern.models.extractor import (
@@ -92,9 +92,12 @@ class InferenceEngine:
         spec = self.schema.document_types.get(dt_name)
         hw_names = [f.name for f in spec.fields if f.capture == "handwritten"] if spec else []
 
-        # Run Claude Vision OCR on the full-resolution image for handwritten fields.
+        # Run VLM OCR on the contrast-enhanced color image for handwritten fields.
+        ocr_image = preprocess_for_ocr(clean) if hw_names else None
         ocr: dict[str, tuple[str | None, float]] = (
-            extract_handwritten_fields(clean, hw_names, dt_name) if hw_names else {}
+            extract_handwritten_fields(ocr_image, hw_names, dt_name)  # type: ignore[arg-type]
+            if ocr_image is not None
+            else {}
         )
 
         return self._decode(logits, ocr)

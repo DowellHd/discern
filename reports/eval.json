@@ -8,8 +8,8 @@
     "f1": 0.5068,
     "cer": 1.0,
     "wer": 1.0,
-    "p50_latency_ms": 499.1,
-    "p95_latency_ms": 680.0
+    "p50_latency_ms": 541.8,
+    "p95_latency_ms": 754.1
   },
   "by_capture": {
     "handwritten": {
@@ -20,8 +20,8 @@
       "f1": 0.0182,
       "cer": 1.0,
       "wer": 1.0,
-      "p50_latency_ms": 499.1,
-      "p95_latency_ms": 680.0
+      "p50_latency_ms": 541.8,
+      "p95_latency_ms": 754.1
     },
     "checkbox": {
       "capture": "checkbox",
@@ -31,8 +31,8 @@
       "f1": 1.0,
       "cer": 0.0,
       "wer": 0.0,
-      "p50_latency_ms": 499.2,
-      "p95_latency_ms": 680.0
+      "p50_latency_ms": 541.8,
+      "p95_latency_ms": 754.1
     }
   }
 }
