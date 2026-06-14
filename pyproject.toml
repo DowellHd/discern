@@ -37,6 +37,7 @@ psycopg2-binary    = ">=2.9"
 torch              = {version = "2.10.0", source = "pytorch-cpu"}
 torchvision        = {version = "0.25.0", source = "pytorch-cpu"}
 pillow             = ">=10.3"
+anthropic          = ">=0.40"
 numpy              = ">=1.26"
 opencv-python-headless = ">=4.9"
 faker              = ">=25.0"

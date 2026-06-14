@@ -14,6 +14,7 @@ from PIL import Image
 
 from discern.data.preprocess import preprocess
 from discern.data.schema import DocumentSchema
+from discern.inference.ocr import extract_handwritten_fields
 from discern.models.extractor import (
     CATEGORY_OPTIONS,
     DOC_TYPES,
@@ -80,10 +81,23 @@ class InferenceEngine:
     @torch.no_grad()
     def predict(self, image: Image.Image) -> InferenceResult:
         """Run inference on a PIL image; returns structured result."""
-        processed = preprocess(strip_exif(image))
+        clean = strip_exif(image)
+        processed = preprocess(clean)
         tensor = _transform(processed).unsqueeze(0).to(self.device)
         logits = self.model(tensor)
-        return self._decode(logits)
+
+        # Determine document type first so OCR targets only the relevant fields.
+        dt_probs = F.softmax(logits["doc_type"], dim=-1)[0]
+        dt_name = DOC_TYPES[int(dt_probs.argmax().item())]
+        spec = self.schema.document_types.get(dt_name)
+        hw_names = [f.name for f in spec.fields if f.capture == "handwritten"] if spec else []
+
+        # Run Claude Vision OCR on the full-resolution image for handwritten fields.
+        ocr: dict[str, tuple[str | None, float]] = (
+            extract_handwritten_fields(clean, hw_names, dt_name) if hw_names else {}
+        )
+
+        return self._decode(logits, ocr)
 
     @staticmethod
     def validate_upload(data: bytes, content_type: str) -> None:
@@ -97,7 +111,11 @@ class InferenceEngine:
     # Internal
     # ------------------------------------------------------------------
 
-    def _decode(self, logits: dict[str, torch.Tensor]) -> InferenceResult:
+    def _decode(
+        self,
+        logits: dict[str, torch.Tensor],
+        ocr: dict[str, tuple[str | None, float]] | None = None,
+    ) -> InferenceResult:
         dt_probs = F.softmax(logits["doc_type"], dim=-1)[0]
         dt_idx = int(dt_probs.argmax().item())
         dt_name = DOC_TYPES[dt_idx]
@@ -110,7 +128,7 @@ class InferenceEngine:
         fields: list[FieldResult] = []
         for field in spec.fields:
             value, confidence = self._decode_field(
-                field.name, field.value_type, field.capture, logits
+                field.name, field.value_type, field.capture, logits, ocr or {}
             )
             display_value = "[REDACTED]" if field.sensitive and value is not None else value
             fields.append(
@@ -128,10 +146,14 @@ class InferenceEngine:
 
     @staticmethod
     def _decode_field(
-        name: str, value_type: str, capture: str, logits: dict[str, torch.Tensor]
+        name: str,
+        value_type: str,
+        capture: str,
+        logits: dict[str, torch.Tensor],
+        ocr: dict[str, tuple[str | None, float]],
     ) -> tuple[str | None, float]:
         if capture != "checkbox":
-            return None, 0.0  # handwritten: OCR not implemented
+            return ocr.get(name, (None, 0.0))
 
         if name == "visit_type":
             probs = F.softmax(logits["visit_type"][0], dim=-1)
