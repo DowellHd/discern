@@ -116,7 +116,12 @@ def _post_json(url: str, payload: dict[str, Any], timeout: int) -> dict[str, Any
     try:
         with urllib.request.urlopen(req, timeout=timeout) as resp:
             return json.loads(resp.read())  # type: ignore[return-value]
+    except urllib.error.HTTPError as exc:
+        # API returned an error (e.g. 400 invalid key, 403 quota exceeded)
+        body = exc.read().decode(errors="replace")[:500]
+        log.warning("http_api_error", status=exc.code, reason=exc.reason, body=body)
     except urllib.error.URLError as exc:
+        # Connection-level failure — service not reachable (expected for Ollama on Render)
         log.debug("http_unavailable", url=url, error=str(exc))
     except Exception as exc:
         log.warning("http_error", url=url, error=str(exc))
@@ -174,8 +179,10 @@ def _try_gemini(
 ) -> dict[str, tuple[str | None, float]] | None:
     api_key = os.environ.get("GOOGLE_API_KEY") or os.environ.get("GEMINI_API_KEY")
     if not api_key:
+        log.warning("gemini_skipped", reason="GOOGLE_API_KEY / GEMINI_API_KEY not set")
         return None
 
+    log.info("gemini_attempt", model=_GEMINI_MODEL, key_prefix=api_key[:6])
     url = (
         f"https://generativelanguage.googleapis.com/v1beta/models/"
         f"{_GEMINI_MODEL}:generateContent?key={api_key}"
