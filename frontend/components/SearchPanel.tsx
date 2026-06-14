@@ -30,7 +30,7 @@ export function SearchPanel({ onSelect }: Props) {
     setLoading(true);
     setError(null);
     try {
-      const resp = await searchDocuments(q || undefined, docType || undefined, 20, 0);
+      const resp = await searchDocuments(q || undefined, docType || undefined, undefined, 20, 0);
       setResults(resp.results);
       setTotal(resp.total);
       setSearched(true);
@@ -74,6 +74,7 @@ export function SearchPanel({ onSelect }: Props) {
             <option value="">All types</option>
             <option value="connection_card">Connection Card</option>
             <option value="prayer_request">Prayer Request</option>
+            <option value="giving_envelope">Giving Envelope</option>
           </select>
 
           <button

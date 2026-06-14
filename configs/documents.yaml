@@ -51,6 +51,27 @@ document_types:
       - name: contact_ok
         value_type: bool
         capture: checkbox
+  giving_envelope:
+    description: Tithe/offering envelope with donor and amount information
+    fields:
+      - name: donor_name
+        value_type: string
+        capture: handwritten
+        required: true
+      - name: envelope_date
+        value_type: date
+        capture: handwritten
+      - name: amount
+        value_type: string
+        capture: handwritten
+      - name: fund
+        value_type: enum
+        options: [general, missions, building, youth, other]
+        capture: checkbox
+      - name: memo
+        value_type: freetext
+        capture: handwritten
+        nullable: true
 # Bulletins are semi-structured: detect blocks/regions, not fixed fields.
 region_types:
   bulletin:

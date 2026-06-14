@@ -1,13 +1,14 @@
 "use client";
 import { useState } from "react";
-import type { Extraction, Field } from "@/lib/types";
+import type { Extraction, Field, FollowUpStatus } from "@/lib/types";
 import { FieldRow } from "./FieldRow";
-import { overlayUrl } from "@/lib/api";
+import { overlayUrl, patchField, patchStatus, exportCsvUrl } from "@/lib/api";
 import { Badge } from "@/components/ui/Badge";
 import type { BadgeVariant } from "@/components/ui/Badge";
 
 interface Props {
   extraction: Extraction;
+  onUpdate?: (updated: Extraction) => void;
 }
 
 function confVariant(pct: number): BadgeVariant {
@@ -16,13 +17,55 @@ function confVariant(pct: number): BadgeVariant {
   return "danger";
 }
 
-export function ExtractionResult({ extraction }: Props) {
+const STATUS_OPTIONS: { value: FollowUpStatus; label: string; color: string }[] = [
+  { value: null,        label: "No follow-up",  color: "#94a3b8" },
+  { value: "pending",   label: "Pending",        color: "#f59e0b" },
+  { value: "contacted", label: "Contacted",      color: "#6366f1" },
+  { value: "done",      label: "Done",           color: "#10b981" },
+];
+
+function statusVariant(s: FollowUpStatus): BadgeVariant {
+  if (s === "done")      return "success";
+  if (s === "contacted") return "neutral";
+  if (s === "pending")   return "warn";
+  return "neutral";
+}
+
+export function ExtractionResult({ extraction, onUpdate }: Props) {
   const [fields, setFields] = useState<Field[]>(extraction.fields);
+  const [status, setStatus] = useState<FollowUpStatus>(extraction.follow_up_status);
   const [showOverlay, setShowOverlay] = useState(true);
   const [copied, setCopied] = useState(false);
+  const [savingField, setSavingField] = useState<string | null>(null);
+  const [savingStatus, setSavingStatus] = useState(false);
 
-  function handleChange(name: string, value: string) {
+  async function handleChange(name: string, value: string) {
     setFields((prev) => prev.map((f) => (f.name === name ? { ...f, value } : f)));
+    setSavingField(name);
+    try {
+      const updated = await patchField(extraction.id, name, value || null);
+      setFields(updated.fields);
+      onUpdate?.(updated);
+    } catch {
+      // revert on error
+      setFields((prev) => prev.map((f) => (f.name === name ? { ...f, value: extraction.fields.find(o => o.name === name)?.value ?? null } : f)));
+    } finally {
+      setSavingField(null);
+    }
+  }
+
+  async function handleStatus(next: FollowUpStatus) {
+    setStatus(next);
+    setSavingStatus(true);
+    try {
+      const updated = await patchStatus(extraction.id, next);
+      setStatus(updated.follow_up_status);
+      onUpdate?.(updated);
+    } catch {
+      setStatus(extraction.follow_up_status);
+    } finally {
+      setSavingStatus(false);
+    }
   }
 
   async function copyJSON() {
@@ -48,6 +91,7 @@ export function ExtractionResult({ extraction }: Props) {
     hour: "2-digit",
     minute: "2-digit",
   });
+  const currentStatus = STATUS_OPTIONS.find((o) => o.value === status) ?? STATUS_OPTIONS[0];
 
   return (
     <section className="space-y-4 animate-fade-up">
@@ -58,22 +102,56 @@ export function ExtractionResult({ extraction }: Props) {
             <div className="flex items-center gap-2 flex-wrap">
               <h2 className="text-lg font-bold text-slate-900 tracking-tight">{docLabel}</h2>
               <Badge variant={confVariant(confPct)}>{confPct}% confidence</Badge>
+              {status && (
+                <Badge variant={statusVariant(status)}>{currentStatus.label}</Badge>
+              )}
             </div>
             <p className="text-xs text-slate-400 font-medium">Extracted {createdAt}</p>
           </div>
 
-          <div className="flex items-center gap-2 flex-shrink-0">
+          <div className="flex items-center gap-2 flex-shrink-0 flex-wrap">
+            {/* Follow-up status selector */}
+            <div className="relative">
+              <select
+                value={status ?? ""}
+                disabled={savingStatus}
+                onChange={(e) => handleStatus((e.target.value || null) as FollowUpStatus)}
+                aria-label="Set follow-up status"
+                className="appearance-none text-xs font-semibold px-3 py-1.5 pr-7 rounded-lg border bg-slate-50 hover:bg-slate-100 text-slate-600 border-slate-200 hover:border-slate-300 transition-colors cursor-pointer focus:outline-none focus:ring-2 focus:ring-indigo-400"
+              >
+                {STATUS_OPTIONS.map((o) => (
+                  <option key={String(o.value)} value={o.value ?? ""}>
+                    {o.label}
+                  </option>
+                ))}
+              </select>
+              <svg className="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 w-3 h-3 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M19 9l-7 7-7-7" />
+              </svg>
+            </div>
+
+            {/* Export CSV */}
+            <a
+              href={exportCsvUrl(extraction.doc_type)}
+              download
+              aria-label="Export records as CSV"
+              className="flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5 rounded-lg border bg-slate-50 hover:bg-slate-100 text-slate-600 border-slate-200 hover:border-slate-300 transition-colors"
+            >
+              <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.75} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+              </svg>
+              Export CSV
+            </a>
+
             {/* Copy JSON */}
             <button
               onClick={copyJSON}
               aria-label="Copy extraction as JSON"
-              className={`
-                flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5 rounded-lg border transition-all duration-200
-                ${copied
+              className={`flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5 rounded-lg border transition-all duration-200 ${
+                copied
                   ? "bg-emerald-50 text-emerald-700 border-emerald-200"
                   : "bg-slate-50 hover:bg-slate-100 text-slate-600 border-slate-200 hover:border-slate-300"
-                }
-              `}
+              }`}
             >
               {copied ? (
                 <>
@@ -135,11 +213,7 @@ export function ExtractionResult({ extraction }: Props) {
           </span>
         </div>
 
-        <table
-          className="w-full text-sm"
-          role="grid"
-          aria-label="Extracted document fields"
-        >
+        <table className="w-full text-sm" role="grid" aria-label="Extracted document fields">
           <thead className="sr-only">
             <tr>
               <th scope="col">Field</th>
@@ -150,7 +224,12 @@ export function ExtractionResult({ extraction }: Props) {
           </thead>
           <tbody className="bg-white divide-y divide-slate-100">
             {fields.map((f) => (
-              <FieldRow key={f.name} field={f} onChange={handleChange} />
+              <FieldRow
+                key={f.name}
+                field={f}
+                saving={savingField === f.name}
+                onChange={handleChange}
+              />
             ))}
           </tbody>
         </table>

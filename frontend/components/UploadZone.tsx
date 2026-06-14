@@ -9,8 +9,9 @@ interface Props {
 }
 
 const MAX_BYTES = 20 * 1024 * 1024;
-const ACCEPT_TYPES = ["image/png", "image/jpeg", "image/tiff"];
+const ACCEPT_TYPES = ["image/png", "image/jpeg", "image/tiff", "application/pdf"];
 const ACCEPT_ATTR = ACCEPT_TYPES.join(",");
+const FORMAT_LABELS = ["PNG", "JPEG", "TIFF", "PDF"];
 
 function formatBytes(b: number): string {
   if (b < 1024 * 1024) return `${(b / 1024).toFixed(0)} KB`;
@@ -19,7 +20,16 @@ function formatBytes(b: number): string {
 
 interface Preview {
   file: File;
-  objectUrl: string;
+  objectUrl: string | null; // null for PDFs
+}
+
+function PdfIcon() {
+  return (
+    <svg className="w-10 h-10 text-red-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5}
+        d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+    </svg>
+  );
 }
 
 export function UploadZone({ onFile, loading, warmingUp }: Props) {
@@ -28,7 +38,6 @@ export function UploadZone({ onFile, loading, warmingUp }: Props) {
   const [validationError, setValidationError] = useState<string | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
-  /* Revoke object URL on cleanup */
   useEffect(() => {
     const url = preview?.objectUrl;
     return () => { if (url) URL.revokeObjectURL(url); };
@@ -36,7 +45,7 @@ export function UploadZone({ onFile, loading, warmingUp }: Props) {
 
   function stageFile(file: File) {
     if (!ACCEPT_TYPES.includes(file.type)) {
-      setValidationError("Only PNG, JPEG, and TIFF files are supported.");
+      setValidationError("Only PNG, JPEG, TIFF, and PDF files are supported.");
       return;
     }
     if (file.size > MAX_BYTES) {
@@ -46,7 +55,8 @@ export function UploadZone({ onFile, loading, warmingUp }: Props) {
     setValidationError(null);
     setPreview((prev) => {
       if (prev?.objectUrl) URL.revokeObjectURL(prev.objectUrl);
-      return { file, objectUrl: URL.createObjectURL(file) };
+      const objectUrl = file.type === "application/pdf" ? null : URL.createObjectURL(file);
+      return { file, objectUrl };
     });
   }
 
@@ -63,14 +73,12 @@ export function UploadZone({ onFile, loading, warmingUp }: Props) {
     if (file) stageFile(file);
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
-  /* ── Loading state (uploading) ─────────────────────── */
   if (loading) {
     return (
       <div className="card p-6 flex flex-col items-center gap-4 text-center">
         <div className="w-12 h-12 rounded-full bg-indigo-50 flex items-center justify-center">
           <Spinner size="lg" className="text-indigo-500" />
         </div>
-
         {warmingUp ? (
           <>
             <div className="space-y-1">
@@ -79,7 +87,7 @@ export function UploadZone({ onFile, loading, warmingUp }: Props) {
                 The first request after idle can take 30–60 s while the model loads on Render.
               </p>
             </div>
-            <div className="progress-track w-full h-1" role="progressbar" aria-label="Loading in progress" aria-valuetext="Indeterminate">
+            <div className="progress-track w-full h-1" role="progressbar" aria-label="Loading" aria-valuetext="Indeterminate">
               <div className="progress-thumb" />
             </div>
             <p className="text-[11px] text-slate-400 animate-gentle-pulse">Hang tight — this only happens once per cold start.</p>
@@ -99,21 +107,26 @@ export function UploadZone({ onFile, loading, warmingUp }: Props) {
     );
   }
 
-  /* ── Preview state (file selected, not yet submitted) ─ */
   if (preview) {
     return (
       <div className="card p-4 space-y-4 animate-scale-in">
-        {/* Thumbnail */}
         <div
           className="relative rounded-xl overflow-hidden bg-slate-50 border border-slate-100 flex items-center justify-center"
           style={{ minHeight: 160 }}
         >
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img
-            src={preview.objectUrl}
-            alt={preview.file.name}
-            className="max-w-full max-h-52 object-contain"
-          />
+          {preview.objectUrl ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img
+              src={preview.objectUrl}
+              alt={preview.file.name}
+              className="max-w-full max-h-52 object-contain"
+            />
+          ) : (
+            <div className="flex flex-col items-center gap-2 py-6">
+              <PdfIcon />
+              <span className="text-xs font-semibold text-slate-500">PDF — page 1 will be extracted</span>
+            </div>
+          )}
           <button
             onClick={clearPreview}
             aria-label="Remove selected file"
@@ -125,7 +138,6 @@ export function UploadZone({ onFile, loading, warmingUp }: Props) {
           </button>
         </div>
 
-        {/* File info */}
         <div className="flex items-center gap-2 text-xs text-slate-500 px-0.5">
           <svg className="w-3.5 h-3.5 flex-shrink-0 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5}
@@ -135,7 +147,6 @@ export function UploadZone({ onFile, loading, warmingUp }: Props) {
           <span className="flex-shrink-0 text-slate-400">{formatBytes(preview.file.size)}</span>
         </div>
 
-        {/* Actions */}
         <div className="flex gap-2">
           <button
             onClick={() => onFile(preview.file)}
@@ -158,59 +169,42 @@ export function UploadZone({ onFile, loading, warmingUp }: Props) {
     );
   }
 
-  /* ── Idle / drag-over state ────────────────────────── */
   return (
     <div className="space-y-2">
       <label
         className="block w-full cursor-pointer rounded-2xl transition-all duration-200"
         style={{
-          background: dragging
-            ? "linear-gradient(135deg, #eef2ff 0%, #e0e7ff 100%)"
-            : "#ffffff",
+          background: dragging ? "linear-gradient(135deg, #eef2ff 0%, #e0e7ff 100%)" : "#ffffff",
           border: dragging ? "2px dashed #6366f1" : "2px dashed #cbd5e1",
           transform: dragging ? "scale(1.01)" : "scale(1)",
-          boxShadow: dragging
-            ? "0 8px 24px rgba(99,102,241,0.15)"
-            : "0 1px 3px rgba(0,0,0,0.06)",
+          boxShadow: dragging ? "0 8px 24px rgba(99,102,241,0.15)" : "0 1px 3px rgba(0,0,0,0.06)",
         }}
         onDragOver={(e) => { e.preventDefault(); setDragging(true); }}
         onDragLeave={() => setDragging(false)}
         onDrop={handleDrop}
-        aria-label="Upload document image"
+        aria-label="Upload document"
       >
         <input
           ref={inputRef}
           type="file"
           accept={ACCEPT_ATTR}
           className="sr-only"
-          onChange={(e) => {
-            const file = e.target.files?.[0];
-            if (file) stageFile(file);
-          }}
+          onChange={(e) => { const file = e.target.files?.[0]; if (file) stageFile(file); }}
         />
-
         <div className="flex flex-col items-center gap-4 px-6 py-10 text-center">
-          {/* Icon */}
           <div
             className="w-14 h-14 rounded-2xl flex items-center justify-center transition-all duration-200"
             style={{
-              background: dragging
-                ? "linear-gradient(135deg, #818cf8, #6366f1)"
-                : "linear-gradient(135deg, #f1f5f9, #e2e8f0)",
+              background: dragging ? "linear-gradient(135deg, #818cf8, #6366f1)" : "linear-gradient(135deg, #f1f5f9, #e2e8f0)",
               boxShadow: dragging ? "0 4px 12px rgba(99,102,241,0.3)" : "none",
             }}
           >
-            <svg
-              className="w-6 h-6 transition-colors duration-200"
-              style={{ color: dragging ? "#ffffff" : "#94a3b8" }}
-              fill="none" stroke="currentColor" viewBox="0 0 24 24"
-              aria-hidden="true"
-            >
+            <svg className="w-6 h-6 transition-colors duration-200" style={{ color: dragging ? "#ffffff" : "#94a3b8" }}
+              fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.75}
                 d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5m-13.5-9L12 3m0 0l4.5 4.5M12 3v13.5" />
             </svg>
           </div>
-
           {dragging ? (
             <p className="text-sm font-bold" style={{ color: "#4f46e5" }}>Drop to upload</p>
           ) : (
@@ -222,12 +216,9 @@ export function UploadZone({ onFile, loading, warmingUp }: Props) {
                 </span>
               </p>
               <div className="flex items-center justify-center gap-1.5">
-                {["PNG", "JPEG", "TIFF"].map((fmt) => (
-                  <span
-                    key={fmt}
-                    className="text-[10px] font-bold uppercase tracking-wide px-1.5 py-0.5 rounded"
-                    style={{ background: "#f1f5f9", color: "#94a3b8" }}
-                  >
+                {FORMAT_LABELS.map((fmt) => (
+                  <span key={fmt} className="text-[10px] font-bold uppercase tracking-wide px-1.5 py-0.5 rounded"
+                    style={{ background: "#f1f5f9", color: "#94a3b8" }}>
                     {fmt}
                   </span>
                 ))}
@@ -239,11 +230,8 @@ export function UploadZone({ onFile, loading, warmingUp }: Props) {
       </label>
 
       {validationError && (
-        <div
-          role="alert"
-          className="flex items-start gap-2 rounded-xl px-3 py-2.5 animate-fade-up"
-          style={{ background: "#fef2f2", border: "1px solid #fecaca" }}
-        >
+        <div role="alert" className="flex items-start gap-2 rounded-xl px-3 py-2.5 animate-fade-up"
+          style={{ background: "#fef2f2", border: "1px solid #fecaca" }}>
           <svg className="w-4 h-4 flex-shrink-0 mt-0.5" style={{ color: "#f87171" }} fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
           </svg>

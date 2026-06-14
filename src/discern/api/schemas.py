@@ -3,8 +3,11 @@
 from __future__ import annotations
 
 from datetime import datetime
+from typing import Literal
 
 from pydantic import BaseModel
+
+FollowUpStatus = Literal["pending", "contacted", "done"] | None
 
 
 class FieldOut(BaseModel):
@@ -13,6 +16,7 @@ class FieldOut(BaseModel):
     confidence: float
     capture: str
     sensitive: bool
+    corrected: bool = False
 
 
 class ExtractionOut(BaseModel):
@@ -22,6 +26,7 @@ class ExtractionOut(BaseModel):
     fields: list[FieldOut]
     overlay_url: str
     created_at: datetime
+    follow_up_status: FollowUpStatus = None
 
     model_config = {"from_attributes": True}
 
@@ -31,6 +36,26 @@ class SearchResponse(BaseModel):
     results: list[ExtractionOut]
 
 
+class BatchOut(BaseModel):
+    results: list[ExtractionOut]
+    errors: list[str]
+
+
 class HealthOut(BaseModel):
     status: str
     model_loaded: bool
+
+
+class FieldPatch(BaseModel):
+    value: str | None
+
+
+class StatusPatch(BaseModel):
+    follow_up_status: FollowUpStatus
+
+
+class StatsOut(BaseModel):
+    total_documents: int
+    by_doc_type: dict[str, int]
+    avg_confidence: float
+    review_queue: int

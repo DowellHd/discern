@@ -30,7 +30,7 @@ _transform = T.Compose(
     [T.Resize((_IMG_SIZE, _IMG_SIZE)), T.ToTensor(), T.Normalize(mean=[0.5], std=[0.5])]
 )
 
-_ALLOWED_MIME = {"image/jpeg", "image/png", "image/tiff"}
+_ALLOWED_MIME = {"image/jpeg", "image/png", "image/tiff", "application/pdf"}
 _MAX_BYTES = 20 * 1024 * 1024  # 20 MB
 
 
@@ -190,3 +190,14 @@ def strip_exif(image: Image.Image) -> Image.Image:
     clean = Image.open(buf)
     clean.load()
     return clean.copy()
+
+
+def pdf_first_page(data: bytes) -> Image.Image:
+    """Render the first page of a PDF at 2× resolution and return a PIL Image."""
+    import fitz  # PyMuPDF — guarded import so the package is only required at runtime
+
+    doc = fitz.open(stream=data, filetype="pdf")
+    page = doc[0]
+    mat = fitz.Matrix(2.0, 2.0)
+    pix = page.get_pixmap(matrix=mat)
+    return Image.frombytes("RGB", (pix.width, pix.height), pix.samples)

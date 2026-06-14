@@ -81,7 +81,7 @@ def test_validate_upload_rejects_large_file(engine) -> None:
 
 def test_validate_upload_rejects_bad_type(engine) -> None:
     with pytest.raises(ValueError, match="Unsupported"):
-        engine.validate_upload(b"data", "application/pdf")
+        engine.validate_upload(b"data", "application/zip")
 
 
 def test_validate_upload_accepts_valid(engine) -> None:

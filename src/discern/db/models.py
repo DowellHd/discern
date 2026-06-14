@@ -5,7 +5,7 @@ from __future__ import annotations
 import uuid
 from datetime import UTC, datetime
 
-from sqlalchemy import DateTime, Float, ForeignKey, String, Text
+from sqlalchemy import Boolean, DateTime, Float, ForeignKey, String, Text
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
 
 
@@ -22,6 +22,7 @@ class Document(Base):
     doc_type_confidence: Mapped[float] = mapped_column(Float, nullable=False)
     image_path: Mapped[str] = mapped_column(String(512), nullable=False)
     overlay_path: Mapped[str] = mapped_column(String(512), nullable=False)
+    follow_up_status: Mapped[str | None] = mapped_column(String(32), nullable=True)
     created_at: Mapped[datetime] = mapped_column(
         DateTime, default=lambda: datetime.now(UTC).replace(tzinfo=None)
     )
@@ -42,5 +43,6 @@ class ExtractionField(Base):
     field_value: Mapped[str | None] = mapped_column(Text, nullable=True)
     confidence: Mapped[float] = mapped_column(Float, nullable=False)
     capture_type: Mapped[str] = mapped_column(String(32), nullable=False)
+    corrected: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
 
     document: Mapped[Document] = relationship("Document", back_populates="fields")

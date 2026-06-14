@@ -6,6 +6,7 @@ import type { BadgeVariant } from "@/components/ui/Badge";
 
 interface Props {
   field: Field;
+  saving?: boolean;
   onChange: (name: string, value: string) => void;
 }
 
@@ -38,7 +39,7 @@ function CaptureIcon({ type }: { type: string }) {
   );
 }
 
-export function FieldRow({ field, onChange }: Props) {
+export function FieldRow({ field, saving = false, onChange }: Props) {
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState(field.value ?? "");
 
@@ -48,7 +49,7 @@ export function FieldRow({ field, onChange }: Props) {
   const isRedacted = field.sensitive && field.value === "[REDACTED]";
   const displayVal = isRedacted ? "••••••" : (field.value ?? "—");
   const isEmpty = !field.value;
-  const canEdit = !isRedacted && field.capture !== "handwritten";
+  const canEdit = !isRedacted;
   const confPct = Math.round(field.confidence * 100);
 
   function commit() {
@@ -137,12 +138,20 @@ export function FieldRow({ field, onChange }: Props) {
         </div>
       </td>
 
-      {/* Capture type */}
+      {/* Capture type + corrected indicator */}
       <td className="py-3 pl-3 pr-5 whitespace-nowrap align-top">
-        <Badge variant="neutral" className="gap-1">
-          <CaptureIcon type={field.capture} />
-          {field.capture}
-        </Badge>
+        <div className="flex items-center gap-1.5">
+          <Badge variant="neutral" className="gap-1">
+            <CaptureIcon type={field.capture} />
+            {field.capture}
+          </Badge>
+          {saving && (
+            <span className="text-[10px] text-indigo-400 font-medium animate-pulse">saving…</span>
+          )}
+          {!saving && field.corrected && (
+            <span className="text-[10px] text-emerald-500 font-semibold">edited</span>
+          )}
+        </div>
       </td>
     </tr>
   );

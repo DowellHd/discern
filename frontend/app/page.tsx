@@ -3,17 +3,26 @@ import { useState, useCallback, useEffect, useRef } from "react";
 import { UploadZone } from "@/components/UploadZone";
 import { ExtractionResult } from "@/components/ExtractionResult";
 import { SearchPanel } from "@/components/SearchPanel";
+import { StatsPanel } from "@/components/StatsPanel";
 import { extractDocument } from "@/lib/api";
 import type { Extraction } from "@/lib/types";
 
 const WARM_UP_DELAY_MS = 10_000;
+
+type Tab = "upload" | "search" | "stats";
+
+const TABS: { id: Tab; label: string }[] = [
+  { id: "upload", label: "Extract" },
+  { id: "search", label: "Search" },
+  { id: "stats",  label: "Stats" },
+];
 
 export default function Home() {
   const [extraction, setExtraction] = useState<Extraction | null>(null);
   const [loading, setLoading] = useState(false);
   const [warmingUp, setWarmingUp] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [tab, setTab] = useState<"upload" | "search">("upload");
+  const [tab, setTab] = useState<Tab>("upload");
   const warmTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
@@ -43,9 +52,14 @@ export default function Home() {
   return (
     <div className="min-h-screen flex flex-col">
       {/* ── Header ────────────────────────────────────────── */}
-      <header className="sticky top-0 z-20 flex items-center px-4 sm:px-6 gap-4" style={{ height: 56, background: "#0f172a", borderBottom: "1px solid rgba(255,255,255,0.06)" }}>
-        {/* Brand mark */}
-        <a href="/" className="flex items-center gap-2.5 flex-shrink-0 rounded-lg outline-none focus-visible:ring-2 focus-visible:ring-indigo-400">
+      <header
+        className="sticky top-0 z-20 flex items-center px-4 sm:px-6 gap-4"
+        style={{ height: 56, background: "#0f172a", borderBottom: "1px solid rgba(255,255,255,0.06)" }}
+      >
+        <a
+          href="/"
+          className="flex items-center gap-2.5 flex-shrink-0 rounded-lg outline-none focus-visible:ring-2 focus-visible:ring-indigo-400"
+        >
           <div
             className="w-8 h-8 rounded-xl flex items-center justify-center flex-shrink-0 select-none shadow-lg"
             style={{ background: "linear-gradient(135deg, #818cf8 0%, #4f46e5 100%)" }}
@@ -59,110 +73,123 @@ export default function Home() {
           </div>
         </a>
 
-        {/* Nav — inline styles so nothing can interfere with visibility */}
-        <nav className="ml-auto flex items-center gap-1" aria-label="Main navigation" style={{ background: "rgba(255,255,255,0.07)", borderRadius: 12, padding: 4 }}>
-          {(["upload", "search"] as const).map((t) => (
+        <nav
+          className="ml-auto flex items-center gap-1"
+          aria-label="Main navigation"
+          style={{ background: "rgba(255,255,255,0.07)", borderRadius: 12, padding: 4 }}
+        >
+          {TABS.map(({ id, label }) => (
             <button
-              key={t}
-              onClick={() => setTab(t)}
-              aria-current={tab === t ? "page" : undefined}
+              key={id}
+              onClick={() => setTab(id)}
+              aria-current={tab === id ? "page" : undefined}
               className="outline-none focus-visible:ring-2 focus-visible:ring-indigo-400 transition-all duration-150"
               style={{
                 padding: "6px 14px",
                 borderRadius: 8,
                 fontSize: 13,
                 fontWeight: 600,
-                background: tab === t ? "#ffffff" : "transparent",
-                color: tab === t ? "#0f172a" : "#94a3b8",
-                boxShadow: tab === t ? "0 1px 3px rgba(0,0,0,0.15)" : "none",
+                background: tab === id ? "#ffffff" : "transparent",
+                color: tab === id ? "#0f172a" : "#94a3b8",
+                boxShadow: tab === id ? "0 1px 3px rgba(0,0,0,0.15)" : "none",
                 border: "none",
                 cursor: "pointer",
               }}
             >
-              {t === "upload" ? "Extract" : "Search"}
+              {label}
             </button>
           ))}
         </nav>
       </header>
 
       {/* ── Body ──────────────────────────────────────────── */}
-      <main
-        className="flex flex-1 w-full max-w-6xl mx-auto px-4 sm:px-6 py-8 gap-6 flex-col sm:flex-row"
-        role="main"
-      >
-        {/* Left panel */}
-        <aside
-          className="w-full sm:w-80 lg:w-88 flex-shrink-0 flex flex-col gap-4"
-          aria-label="Controls"
+      {tab === "stats" ? (
+        <main className="flex-1 w-full max-w-4xl mx-auto px-4 sm:px-6 py-8" role="main">
+          <div className="px-1 mb-5">
+            <h1 className="text-lg font-bold tracking-tight" style={{ color: "#0f172a" }}>Stats &amp; Export</h1>
+            <p className="text-sm mt-0.5 leading-relaxed" style={{ color: "#64748b" }}>
+              Aggregate metrics and CSV export for all extracted records.
+            </p>
+          </div>
+          <StatsPanel />
+        </main>
+      ) : (
+        <main
+          className="flex flex-1 w-full max-w-6xl mx-auto px-4 sm:px-6 py-8 gap-6 flex-col sm:flex-row"
+          role="main"
         >
-          {tab === "upload" ? (
-            <>
-              <div className="px-1">
-                <h1 className="text-lg font-bold tracking-tight" style={{ color: "#0f172a" }}>Upload Document</h1>
-                <p className="text-sm mt-0.5 leading-relaxed" style={{ color: "#64748b" }}>
-                  Photo or scan of a connection card or prayer request.
-                </p>
-              </div>
-
-              <UploadZone
-                key={extraction?.id ?? "empty"}
-                onFile={handleFile}
-                loading={loading}
-                warmingUp={warmingUp}
-              />
-
-              {error && (
-                <div
-                  role="alert"
-                  className="flex items-start gap-3 bg-red-50 border border-red-200 rounded-2xl px-4 py-3.5 animate-fade-up"
-                >
-                  <svg className="w-4 h-4 mt-0.5 flex-shrink-0 text-red-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                  </svg>
-                  <div>
-                    <p className="text-sm font-semibold text-red-800">Extraction failed</p>
-                    <p className="text-xs text-red-600 mt-0.5 leading-relaxed">{error}</p>
-                  </div>
+          {/* Left panel */}
+          <aside className="w-full sm:w-80 lg:w-88 flex-shrink-0 flex flex-col gap-4" aria-label="Controls">
+            {tab === "upload" ? (
+              <>
+                <div className="px-1">
+                  <h1 className="text-lg font-bold tracking-tight" style={{ color: "#0f172a" }}>Upload Document</h1>
+                  <p className="text-sm mt-0.5 leading-relaxed" style={{ color: "#64748b" }}>
+                    Photo, scan, or PDF of a connection card, prayer request, or giving envelope.
+                  </p>
                 </div>
-              )}
-            </>
-          ) : (
-            <>
-              <div className="px-1">
-                <h1 className="text-lg font-bold tracking-tight" style={{ color: "#0f172a" }}>Search Records</h1>
-                <p className="text-sm mt-0.5 leading-relaxed" style={{ color: "#64748b" }}>
-                  Search across all extracted documents.
-                </p>
-              </div>
-              <SearchPanel
-                onSelect={(e) => {
-                  setExtraction(e);
-                  setTab("upload");
-                }}
-              />
-            </>
-          )}
-        </aside>
 
-        {/* Right panel — result */}
-        <section className="flex-1 min-w-0" aria-label="Extraction result">
-          {extraction ? (
-            <ExtractionResult extraction={extraction} />
-          ) : (
-            <EmptyResultState />
-          )}
-        </section>
-      </main>
+                <UploadZone
+                  key={extraction?.id ?? "empty"}
+                  onFile={handleFile}
+                  loading={loading}
+                  warmingUp={warmingUp}
+                />
+
+                {error && (
+                  <div
+                    role="alert"
+                    className="flex items-start gap-3 bg-red-50 border border-red-200 rounded-2xl px-4 py-3.5 animate-fade-up"
+                  >
+                    <svg className="w-4 h-4 mt-0.5 flex-shrink-0 text-red-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                    <div>
+                      <p className="text-sm font-semibold text-red-800">Extraction failed</p>
+                      <p className="text-xs text-red-600 mt-0.5 leading-relaxed">{error}</p>
+                    </div>
+                  </div>
+                )}
+              </>
+            ) : (
+              <>
+                <div className="px-1">
+                  <h1 className="text-lg font-bold tracking-tight" style={{ color: "#0f172a" }}>Search Records</h1>
+                  <p className="text-sm mt-0.5 leading-relaxed" style={{ color: "#64748b" }}>
+                    Search across all extracted documents.
+                  </p>
+                </div>
+                <SearchPanel
+                  onSelect={(e) => {
+                    setExtraction(e);
+                    setTab("upload");
+                  }}
+                />
+              </>
+            )}
+          </aside>
+
+          {/* Right panel */}
+          <section className="flex-1 min-w-0" aria-label="Extraction result">
+            {extraction ? (
+              <ExtractionResult extraction={extraction} onUpdate={setExtraction} />
+            ) : (
+              <EmptyResultState />
+            )}
+          </section>
+        </main>
+      )}
     </div>
   );
 }
 
 function EmptyResultState() {
   return (
-    <div className="h-full min-h-72 flex items-center justify-center rounded-2xl animate-fade-up"
-      style={{ background: "rgba(255,255,255,0.5)", border: "1.5px dashed #e2e8f0" }}>
+    <div
+      className="h-full min-h-72 flex items-center justify-center rounded-2xl animate-fade-up"
+      style={{ background: "rgba(255,255,255,0.5)", border: "1.5px dashed #e2e8f0" }}
+    >
       <div className="text-center space-y-5 py-12 px-8">
-        {/* Stack of document cards illustration */}
         <div className="relative mx-auto w-20 h-20">
           <div className="absolute inset-0 rounded-2xl rotate-6" style={{ background: "#e0e7ff", border: "1px solid #c7d2fe" }} />
           <div className="absolute inset-0 rounded-2xl rotate-2" style={{ background: "#eef2ff", border: "1px solid #c7d2fe" }} />
@@ -173,13 +200,12 @@ function EmptyResultState() {
             </svg>
           </div>
         </div>
-
         <div className="space-y-1.5">
           <p className="text-base font-bold" style={{ color: "#334155" }}>No document extracted yet</p>
-          <p className="text-sm" style={{ color: "#94a3b8" }}>Upload a connection card or prayer request<br />to see structured fields appear here</p>
+          <p className="text-sm" style={{ color: "#94a3b8" }}>
+            Upload a connection card, prayer request,<br />or giving envelope to see structured fields here
+          </p>
         </div>
-
-        {/* Workflow hint */}
         <div className="flex items-center justify-center gap-3 pt-1">
           {["Upload", "Extract", "Search"].map((step, i) => (
             <div key={step} className="flex items-center gap-3">
