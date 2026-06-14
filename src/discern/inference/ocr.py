@@ -1,13 +1,16 @@
 """Vision-based OCR for handwritten form fields.
 
 Extraction backends tried in order:
-  1. Ollama (local VLM — free, no external service)
-  2. Anthropic Claude Vision (requires ANTHROPIC_API_KEY, has usage cost)
+  1. Ollama      — local VLM, free, no external service
+  2. Gemini Flash — Google's free-tier cloud VLM (15 RPM / 1 M TPD, no cost)
+  3. Anthropic   — fallback only; requires ANTHROPIC_API_KEY, incurs usage cost
 
-Set OLLAMA_URL / OLLAMA_MODEL env vars to point at a non-default Ollama
-instance or a different model.  A vision-capable model must be pulled, e.g.:
-  ollama pull llava:7b          # popular, fast, 4.7 GB
-  ollama pull qwen2-vl:7b      # better at structured forms, 4.4 GB
+Environment variables:
+  OLLAMA_URL      default http://localhost:11434
+  OLLAMA_MODEL    default llava:7b
+  OLLAMA_TIMEOUT  default 10 s (increase to 120 for CPU-only inference)
+  GOOGLE_API_KEY  or GEMINI_API_KEY — free key from aistudio.google.com
+  ANTHROPIC_API_KEY
 """
 
 from __future__ import annotations
@@ -32,9 +35,16 @@ _OLLAMA_URL = os.environ.get("OLLAMA_URL", "http://localhost:11434")
 _OLLAMA_MODEL = os.environ.get("OLLAMA_MODEL", "llava:7b")
 _OLLAMA_TIMEOUT = int(os.environ.get("OLLAMA_TIMEOUT", "10"))
 
-# Resize images to this max dimension before sending to any VLM.
-# Keeps latency reasonable without sacrificing OCR accuracy.
+_GEMINI_MODEL = os.environ.get("GEMINI_MODEL", "gemini-2.0-flash")
+_GEMINI_TIMEOUT = 30
+
+# Resize before sending to any VLM — keeps latency down without hurting OCR accuracy.
 _VLM_MAX_DIM = 1024
+
+
+# ---------------------------------------------------------------------------
+# Shared helpers
+# ---------------------------------------------------------------------------
 
 
 def _build_prompt(field_names: list[str], doc_type: str) -> str:
@@ -63,7 +73,7 @@ def _prepare_for_vlm(image: Image.Image) -> str:
 
 
 def _parse_json(raw: str) -> dict[str, Any] | None:
-    """Parse JSON from a VLM response; strips markdown fences and locates embedded objects."""
+    """Strip markdown fences and parse JSON; falls back to scanning for the first object."""
     text = raw.strip()
     if text.startswith("```"):
         parts = text.split("```")
@@ -72,7 +82,6 @@ def _parse_json(raw: str) -> dict[str, Any] | None:
         return json.loads(text)
     except json.JSONDecodeError:
         pass
-    # Try to pull out the first complete JSON object (handles preamble/postamble)
     start = text.find("{")
     end = text.rfind("}") + 1
     if start != -1 and end > start:
@@ -96,8 +105,26 @@ def _fields_from(
     return result
 
 
+def _post_json(url: str, payload: dict[str, Any], timeout: int) -> dict[str, Any] | None:
+    """POST JSON and return the parsed response dict, or None on any error."""
+    req = urllib.request.Request(
+        url,
+        data=json.dumps(payload).encode(),
+        headers={"Content-Type": "application/json"},
+        method="POST",
+    )
+    try:
+        with urllib.request.urlopen(req, timeout=timeout) as resp:
+            return json.loads(resp.read())  # type: ignore[return-value]
+    except urllib.error.URLError as exc:
+        log.debug("http_unavailable", url=url, error=str(exc))
+    except Exception as exc:
+        log.warning("http_error", url=url, error=str(exc))
+    return None
+
+
 # ---------------------------------------------------------------------------
-# Backend: Ollama
+# Backend 1: Ollama (local)
 # ---------------------------------------------------------------------------
 
 
@@ -106,37 +133,23 @@ def _try_ollama(
     field_names: list[str],
     doc_type: str,
 ) -> dict[str, tuple[str | None, float]] | None:
-    """Send the image to a local Ollama vision model.  Returns None if unavailable."""
-    image_b64 = _prepare_for_vlm(image)
-    payload = json.dumps(
+    data = _post_json(
+        f"{_OLLAMA_URL}/api/chat",
         {
             "model": _OLLAMA_MODEL,
             "messages": [
                 {
                     "role": "user",
                     "content": _build_prompt(field_names, doc_type),
-                    "images": [image_b64],
+                    "images": [_prepare_for_vlm(image)],
                 }
             ],
             "stream": False,
             "options": {"temperature": 0},
-        }
-    ).encode()
-
-    req = urllib.request.Request(
-        f"{_OLLAMA_URL}/api/chat",
-        data=payload,
-        headers={"Content-Type": "application/json"},
-        method="POST",
+        },
+        timeout=_OLLAMA_TIMEOUT,
     )
-    try:
-        with urllib.request.urlopen(req, timeout=_OLLAMA_TIMEOUT) as resp:
-            data = json.loads(resp.read())
-    except urllib.error.URLError as exc:
-        log.debug("ollama_unavailable", error=str(exc))
-        return None
-    except Exception as exc:
-        log.warning("ollama_ocr_error", error=str(exc))
+    if data is None:
         return None
 
     raw = data.get("message", {}).get("content", "").strip()
@@ -150,7 +163,58 @@ def _try_ollama(
 
 
 # ---------------------------------------------------------------------------
-# Backend: Anthropic (fallback — incurs API cost)
+# Backend 2: Google Gemini Flash (free tier)
+# ---------------------------------------------------------------------------
+
+
+def _try_gemini(
+    image: Image.Image,
+    field_names: list[str],
+    doc_type: str,
+) -> dict[str, tuple[str | None, float]] | None:
+    api_key = os.environ.get("GOOGLE_API_KEY") or os.environ.get("GEMINI_API_KEY")
+    if not api_key:
+        return None
+
+    url = (
+        f"https://generativelanguage.googleapis.com/v1beta/models/"
+        f"{_GEMINI_MODEL}:generateContent?key={api_key}"
+    )
+    data = _post_json(
+        url,
+        {
+            "contents": [
+                {
+                    "parts": [
+                        {"inlineData": {"mimeType": "image/png", "data": _prepare_for_vlm(image)}},
+                        {"text": _build_prompt(field_names, doc_type)},
+                    ]
+                }
+            ],
+            "generationConfig": {"temperature": 0, "maxOutputTokens": 512},
+        },
+        timeout=_GEMINI_TIMEOUT,
+    )
+    if data is None:
+        return None
+
+    try:
+        raw = data["candidates"][0]["content"]["parts"][0]["text"].strip()
+    except (KeyError, IndexError) as exc:
+        log.warning("gemini_response_error", error=str(exc), data=str(data)[:200])
+        return None
+
+    extracted = _parse_json(raw)
+    if extracted is None:
+        log.warning("gemini_parse_error", raw=raw[:200])
+        return None
+
+    log.info("ocr_done", backend="gemini", model=_GEMINI_MODEL, doc_type=doc_type)
+    return _fields_from(extracted, field_names)
+
+
+# ---------------------------------------------------------------------------
+# Backend 3: Anthropic (fallback — incurs API cost)
 # ---------------------------------------------------------------------------
 
 
@@ -159,7 +223,6 @@ def _try_anthropic(
     field_names: list[str],
     doc_type: str,
 ) -> dict[str, tuple[str | None, float]] | None:
-    """Call Claude Vision.  Returns None when the key is absent or the call fails."""
     api_key = os.environ.get("ANTHROPIC_API_KEY")
     if not api_key:
         return None
@@ -170,7 +233,6 @@ def _try_anthropic(
         log.warning("anthropic_package_missing")
         return None
 
-    image_b64 = _prepare_for_vlm(image)
     try:
         client = anthropic.Anthropic(api_key=api_key)
         message = client.messages.create(
@@ -185,7 +247,7 @@ def _try_anthropic(
                             "source": {
                                 "type": "base64",
                                 "media_type": "image/png",
-                                "data": image_b64,
+                                "data": _prepare_for_vlm(image),
                             },
                         },
                         {"type": "text", "text": _build_prompt(field_names, doc_type)},
@@ -219,10 +281,8 @@ def extract_handwritten_fields(
 ) -> dict[str, tuple[str | None, float]]:
     """Extract handwritten field values from a form image.
 
-    Tries Ollama (local, free) first; falls back to Anthropic if an API key is
-    configured.  Returns an empty dict when no backend succeeds.
-
-    Returns a dict mapping field_name -> (value, confidence).
+    Priority: Ollama (local) → Gemini Flash (free cloud) → Anthropic (paid cloud).
+    Returns an empty dict when no backend succeeds.
     """
     if not field_names:
         return {}
@@ -231,11 +291,16 @@ def extract_handwritten_fields(
     if result is not None:
         return result
 
+    result = _try_gemini(image, field_names, doc_type)
+    if result is not None:
+        return result
+
     result = _try_anthropic(image, field_names, doc_type)
     if result is not None:
         return result
 
     log.warning(
-        "ocr_skipped", reason="no backend available — install Ollama or set ANTHROPIC_API_KEY"
+        "ocr_skipped",
+        reason="no backend available — set GOOGLE_API_KEY, install Ollama, or set ANTHROPIC_API_KEY",
     )
     return {}
