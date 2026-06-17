@@ -182,27 +182,54 @@ def _try_gemini(
         log.warning("gemini_skipped", reason="GOOGLE_API_KEY / GEMINI_API_KEY not set")
         return None
 
-    log.info("gemini_attempt", model=_GEMINI_MODEL, key_prefix=api_key[:6])
-    url = (
-        f"https://generativelanguage.googleapis.com/v1beta/models/"
-        f"{_GEMINI_MODEL}:generateContent?key={api_key}"
+    # Keys containing dots (e.g. "AQ.xxx") are OAuth credentials — use Bearer auth.
+    # Standard API keys (AIzaSy...) go in the URL query string.
+    is_oauth = "." in api_key
+    log.info(
+        "gemini_attempt",
+        model=_GEMINI_MODEL,
+        key_prefix=api_key[:6],
+        auth="bearer" if is_oauth else "apikey",
     )
-    data = _post_json(
+
+    base_url = (
+        f"https://generativelanguage.googleapis.com/v1beta/models/{_GEMINI_MODEL}:generateContent"
+    )
+    url = base_url if is_oauth else f"{base_url}?key={api_key}"
+
+    payload: dict[str, Any] = {
+        "contents": [
+            {
+                "parts": [
+                    {"inlineData": {"mimeType": "image/png", "data": _prepare_for_vlm(image)}},
+                    {"text": _build_prompt(field_names, doc_type)},
+                ]
+            }
+        ],
+        "generationConfig": {"temperature": 0, "maxOutputTokens": 512},
+    }
+
+    req = urllib.request.Request(
         url,
-        {
-            "contents": [
-                {
-                    "parts": [
-                        {"inlineData": {"mimeType": "image/png", "data": _prepare_for_vlm(image)}},
-                        {"text": _build_prompt(field_names, doc_type)},
-                    ]
-                }
-            ],
-            "generationConfig": {"temperature": 0, "maxOutputTokens": 512},
+        data=json.dumps(payload).encode(),
+        headers={
+            "Content-Type": "application/json",
+            **({"Authorization": f"Bearer {api_key}"} if is_oauth else {}),
         },
-        timeout=_GEMINI_TIMEOUT,
+        method="POST",
     )
-    if data is None:
+    try:
+        with urllib.request.urlopen(req, timeout=_GEMINI_TIMEOUT) as resp:
+            data = json.loads(resp.read())
+    except urllib.error.HTTPError as exc:
+        body = exc.read().decode(errors="replace")[:500]
+        log.warning("gemini_http_error", status=exc.code, reason=exc.reason, body=body)
+        return None
+    except urllib.error.URLError as exc:
+        log.warning("gemini_connection_error", error=str(exc))
+        return None
+    except Exception as exc:
+        log.warning("gemini_error", error=str(exc))
         return None
 
     try:

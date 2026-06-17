@@ -8,7 +8,7 @@ import uuid
 from pathlib import Path
 
 import structlog
-from fastapi import Depends, FastAPI, File, HTTPException, Query, UploadFile
+from fastapi import Depends, FastAPI, File, Form, HTTPException, Query, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import Response, StreamingResponse
 from PIL import Image
@@ -88,6 +88,7 @@ def _process_upload(
     filename: str,
     engine: InferenceEngine,
     db: Session,
+    doc_type_override: str | None = None,
 ) -> ExtractionOut:
     """Validate, extract, persist, and return one upload."""
     engine.validate_upload(raw, content_type)
@@ -97,7 +98,7 @@ def _process_upload(
     else:
         image = Image.open(io.BytesIO(raw))
 
-    result = engine.predict(image)
+    result = engine.predict(image, doc_type_override=doc_type_override)
 
     doc_id = str(uuid.uuid4())
     upload_dir = settings.data_dir / "uploads" / doc_id
@@ -178,13 +179,21 @@ def stats(db: Session = Depends(get_db)) -> StatsOut:
 @app.post("/extract", response_model=ExtractionOut, tags=["extraction"])
 def extract(
     file: UploadFile = File(...),
+    doc_type: str | None = Form(None),
     db: Session = Depends(get_db),
     engine: InferenceEngine = Depends(get_inference_engine),
 ) -> ExtractionOut:
     raw = file.file.read()
     content_type = file.content_type or "application/octet-stream"
     try:
-        return _process_upload(raw, content_type, file.filename or "upload", engine, db)
+        return _process_upload(
+            raw,
+            content_type,
+            file.filename or "upload",
+            engine,
+            db,
+            doc_type_override=doc_type,
+        )
     except ValueError as exc:
         raise HTTPException(status_code=422, detail=str(exc)) from exc
 
@@ -192,6 +201,7 @@ def extract(
 @app.post("/extract/batch", response_model=BatchOut, tags=["extraction"])
 def extract_batch(
     files: list[UploadFile] = File(...),
+    doc_type: str | None = Form(None),
     db: Session = Depends(get_db),
     engine: InferenceEngine = Depends(get_inference_engine),
 ) -> BatchOut:
@@ -201,7 +211,16 @@ def extract_batch(
         raw = f.file.read()
         content_type = f.content_type or "application/octet-stream"
         try:
-            results.append(_process_upload(raw, content_type, f.filename or "upload", engine, db))
+            results.append(
+                _process_upload(
+                    raw,
+                    content_type,
+                    f.filename or "upload",
+                    engine,
+                    db,
+                    doc_type_override=doc_type,
+                )
+            )
         except Exception as exc:
             errors.append(f"{f.filename}: {exc}")
     return BatchOut(results=results, errors=errors)

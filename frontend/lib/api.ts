@@ -10,9 +10,10 @@ async function _json<T>(res: Response): Promise<T> {
   return res.json() as Promise<T>;
 }
 
-export async function extractDocument(file: File): Promise<Extraction> {
+export async function extractDocument(file: File, docType?: string): Promise<Extraction> {
   const form = new FormData();
   form.append("file", file);
+  if (docType) form.append("doc_type", docType);
   return _json(await fetch(`${BASE}/extract`, { method: "POST", body: form }));
 }
 

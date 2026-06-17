@@ -79,16 +79,20 @@ class InferenceEngine:
     # ------------------------------------------------------------------
 
     @torch.no_grad()
-    def predict(self, image: Image.Image) -> InferenceResult:
+    def predict(self, image: Image.Image, doc_type_override: str | None = None) -> InferenceResult:
         """Run inference on a PIL image; returns structured result."""
         clean = strip_exif(image)
         processed = preprocess(clean)
         tensor = _transform(processed).unsqueeze(0).to(self.device)
         logits = self.model(tensor)
 
-        # Determine document type first so OCR targets only the relevant fields.
-        dt_probs = F.softmax(logits["doc_type"], dim=-1)[0]
-        dt_name = DOC_TYPES[int(dt_probs.argmax().item())]
+        # Use caller-supplied doc type if valid; otherwise use the classifier.
+        if doc_type_override and doc_type_override in self.schema.document_types:
+            dt_name = doc_type_override
+        else:
+            dt_probs = F.softmax(logits["doc_type"], dim=-1)[0]
+            dt_name = DOC_TYPES[int(dt_probs.argmax().item())]
+
         spec = self.schema.document_types.get(dt_name)
         hw_names = [f.name for f in spec.fields if f.capture == "handwritten"] if spec else []
 
@@ -100,7 +104,7 @@ class InferenceEngine:
             else {}
         )
 
-        return self._decode(logits, ocr)
+        return self._decode(logits, ocr, doc_type_name=dt_name)
 
     @staticmethod
     def validate_upload(data: bytes, content_type: str) -> None:
@@ -118,11 +122,20 @@ class InferenceEngine:
         self,
         logits: dict[str, torch.Tensor],
         ocr: dict[str, tuple[str | None, float]] | None = None,
+        doc_type_name: str | None = None,
     ) -> InferenceResult:
         dt_probs = F.softmax(logits["doc_type"], dim=-1)[0]
         dt_idx = int(dt_probs.argmax().item())
-        dt_name = DOC_TYPES[dt_idx]
-        dt_conf = float(dt_probs[dt_idx].item())
+        model_dt_name = DOC_TYPES[dt_idx]
+        model_dt_conf = float(dt_probs[dt_idx].item())
+
+        if doc_type_name is not None:
+            dt_name = doc_type_name
+            # User-supplied override: treat as full confidence unless model agrees
+            dt_conf = model_dt_conf if dt_name == model_dt_name else 1.0
+        else:
+            dt_name = model_dt_name
+            dt_conf = model_dt_conf
 
         spec = self.schema.document_types.get(dt_name)
         if spec is None:

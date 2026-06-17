@@ -17,12 +17,20 @@ const TABS: { id: Tab; label: string }[] = [
   { id: "stats",  label: "Stats" },
 ];
 
+const DOC_TYPE_OPTIONS = [
+  { value: "",                label: "Auto-detect" },
+  { value: "connection_card", label: "Connection Card" },
+  { value: "prayer_request",  label: "Prayer Request" },
+  { value: "giving_envelope", label: "Giving Envelope" },
+];
+
 export default function Home() {
   const [extraction, setExtraction] = useState<Extraction | null>(null);
   const [loading, setLoading] = useState(false);
   const [warmingUp, setWarmingUp] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [tab, setTab] = useState<Tab>("upload");
+  const [docType, setDocType] = useState("");
   const warmTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
@@ -40,14 +48,14 @@ export default function Home() {
     setError(null);
     setLoading(true);
     try {
-      const result = await extractDocument(file);
+      const result = await extractDocument(file, docType || undefined);
       setExtraction(result);
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : "Upload failed");
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [docType]);
 
   return (
     <div className="min-h-screen flex flex-col">
@@ -127,6 +135,38 @@ export default function Home() {
                   <p className="text-sm mt-0.5 leading-relaxed" style={{ color: "#64748b" }}>
                     Photo, scan, or PDF of a connection card, prayer request, or giving envelope.
                   </p>
+                </div>
+
+                {/* Document type selector */}
+                <div>
+                  <label
+                    htmlFor="doc-type-select"
+                    className="block text-xs font-semibold mb-1.5"
+                    style={{ color: "#64748b" }}
+                  >
+                    Document type
+                  </label>
+                  <select
+                    id="doc-type-select"
+                    value={docType}
+                    onChange={(e) => setDocType(e.target.value)}
+                    className="w-full rounded-xl px-3 py-2 text-sm font-medium outline-none focus-visible:ring-2 focus-visible:ring-indigo-400"
+                    style={{
+                      background: "#fff",
+                      border: "1.5px solid #e2e8f0",
+                      color: "#334155",
+                      cursor: "pointer",
+                    }}
+                  >
+                    {DOC_TYPE_OPTIONS.map(({ value, label }) => (
+                      <option key={value} value={value}>{label}</option>
+                    ))}
+                  </select>
+                  {!docType && (
+                    <p className="text-xs mt-1" style={{ color: "#94a3b8" }}>
+                      Select the type for best results — the classifier is untrained.
+                    </p>
+                  )}
                 </div>
 
                 <UploadZone
