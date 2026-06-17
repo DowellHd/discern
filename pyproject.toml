@@ -42,6 +42,7 @@ numpy              = ">=1.26"
 opencv-python-headless = ">=4.9"
 faker              = ">=25.0"
 pymupdf            = ">=1.24"
+pytesseract        = ">=0.3"
 
 # ---------------------------------------------------------------------------
 # Dev / test dependencies

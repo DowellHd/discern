@@ -1,9 +1,15 @@
-"""Vision-based OCR for handwritten form fields.
+"""Vision-based OCR for text and handwritten form fields.
 
 Extraction backends tried in order:
-  1. Ollama      — local VLM, free, no external service
-  2. Gemini Flash — Google's free-tier cloud VLM (15 RPM / 1 M TPD, no cost)
-  3. Anthropic   — fallback only; requires ANTHROPIC_API_KEY, incurs usage cost
+  1. Tesseract   — local rule-based OCR; best for printed/typed text; zero dependencies at runtime
+  2. Ollama      — local VLM, free, no external service; handles handwriting
+  3. Gemini Flash — Google's free-tier cloud VLM (15 RPM / 1 M TPD, no cost)
+  4. Anthropic   — fallback only; requires ANTHROPIC_API_KEY, incurs usage cost
+
+Tesseract requires the `tesseract-ocr` system package.
+  macOS:  brew install tesseract
+  Ubuntu: apt-get install -y tesseract-ocr   (already present on Render/Heroku)
+  Render: prefix your Build Command with: apt-get install -y tesseract-ocr &&
 
 Environment variables:
   OLLAMA_URL      default http://localhost:11434
@@ -19,6 +25,7 @@ import base64
 import io
 import json
 import os
+import re
 import urllib.error
 import urllib.request
 from typing import Any
@@ -129,7 +136,94 @@ def _post_json(url: str, payload: dict[str, Any], timeout: int) -> dict[str, Any
 
 
 # ---------------------------------------------------------------------------
-# Backend 1: Ollama (local)
+# Backend 1: Tesseract (local, no API key, best for printed/typed text)
+# ---------------------------------------------------------------------------
+
+# Maps schema field names → possible label text that appears on real forms.
+# "full_name" might appear as "Name:" or "Full Name:" on the physical card.
+_FIELD_LABELS: dict[str, list[str]] = {
+    "full_name": ["full name", "name"],
+    "email": ["email", "e-mail", "email address"],
+    "phone": ["phone", "phone number", "cell", "telephone"],
+    "service_date": ["date", "service date"],
+    "notes": ["notes", "comments", "additional notes"],
+    "invited_by": ["invited by"],
+    "requester_name": ["name", "your name", "requester"],
+    "request_text": ["prayer request", "request", "message"],
+    "donor_name": ["donor name", "name", "donor"],
+    "envelope_date": ["date", "envelope date"],
+    "amount": ["amount", "gift amount", "offering"],
+    "memo": ["memo", "note", "notes"],
+}
+
+
+def _extract_by_label(field_name: str, text: str) -> str | None:
+    """Pull a field value from raw OCR text using form-label heuristics."""
+    # Regex patterns for well-structured fields.
+    if field_name in ("email",):
+        m = re.search(r"[\w.+\-]+@[\w.\-]+\.\w{2,}", text)
+        return m.group(0) if m else None
+    if field_name in ("phone",):
+        m = re.search(r"\(?\d{3}\)?[\s.\-]?\d{3}[\s.\-]?\d{4}", text)
+        return m.group(0) if m else None
+    if field_name in ("service_date", "envelope_date"):
+        m = re.search(r"\d{1,2}[\s/\-]\d{1,2}[\s/\-]\d{2,4}", text)
+        return m.group(0) if m else None
+
+    aliases = _FIELD_LABELS.get(field_name, [field_name.replace("_", " ")])
+    for alias in aliases:
+        # Look for "Label: value" or "Label  value" on a single line
+        pattern = rf"(?i)\b{re.escape(alias)}\s*[:\-]?\s*(.+?)(?:\n|$)"
+        m = re.search(pattern, text)
+        if m:
+            val = m.group(1).strip().rstrip(",;")
+            # Skip blank hits, all-caps headings, and values that look like another label
+            if val and len(val) > 1 and not re.fullmatch(r"[A-Z\s/]+", val):
+                return val
+    return None
+
+
+def _try_tesseract(
+    image: Image.Image,
+    field_names: list[str],
+    doc_type: str,
+) -> dict[str, tuple[str | None, float]] | None:
+    try:
+        import pytesseract
+    except ImportError:
+        log.debug("tesseract_skipped", reason="pytesseract not installed")
+        return None
+
+    try:
+        text = pytesseract.image_to_string(image, config="--psm 6")
+    except Exception as exc:
+        log.warning("tesseract_error", error=str(exc))
+        return None
+
+    if not text.strip():
+        log.warning("tesseract_empty")
+        return None
+
+    result: dict[str, tuple[str | None, float]] = {}
+    found = 0
+    for name in field_names:
+        val = _extract_by_label(name, text)
+        if val:
+            result[name] = (val, 0.72)
+            found += 1
+        else:
+            result[name] = (None, 0.0)
+
+    if found == 0:
+        log.warning("tesseract_no_fields_found", doc_type=doc_type)
+        return None  # let next backend try
+
+    log.info("ocr_done", backend="tesseract", doc_type=doc_type, fields_found=found)
+    return result
+
+
+# ---------------------------------------------------------------------------
+# Backend 3: Ollama (local VLM)
 # ---------------------------------------------------------------------------
 
 
@@ -168,7 +262,7 @@ def _try_ollama(
 
 
 # ---------------------------------------------------------------------------
-# Backend 2: Google Gemini Flash (free tier)
+# Backend 4: Google Gemini Flash (free tier)
 # ---------------------------------------------------------------------------
 
 
@@ -248,7 +342,7 @@ def _try_gemini(
 
 
 # ---------------------------------------------------------------------------
-# Backend 3: Anthropic (fallback — incurs API cost)
+# Backend 5: Anthropic (fallback — incurs API cost)
 # ---------------------------------------------------------------------------
 
 
@@ -321,6 +415,10 @@ def extract_handwritten_fields(
     if not field_names:
         return {}
 
+    result = _try_tesseract(image, field_names, doc_type)
+    if result is not None:
+        return result
+
     result = _try_ollama(image, field_names, doc_type)
     if result is not None:
         return result
@@ -335,6 +433,6 @@ def extract_handwritten_fields(
 
     log.warning(
         "ocr_skipped",
-        reason="no backend available — set GOOGLE_API_KEY, install Ollama, or set ANTHROPIC_API_KEY",
+        reason="no backend available — install tesseract-ocr, Ollama, or set GOOGLE_API_KEY",
     )
     return {}

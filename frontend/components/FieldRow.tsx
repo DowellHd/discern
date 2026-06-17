@@ -143,7 +143,7 @@ export function FieldRow({ field, saving = false, onChange }: Props) {
         <div className="flex items-center gap-1.5">
           <Badge variant="neutral" className="gap-1">
             <CaptureIcon type={field.capture} />
-            {field.capture}
+            {field.capture === "handwritten" ? "text" : field.capture}
           </Badge>
           {saving && (
             <span className="text-[10px] text-indigo-400 font-medium animate-pulse">saving…</span>
