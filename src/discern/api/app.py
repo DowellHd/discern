@@ -18,6 +18,7 @@ from sqlalchemy.orm import Session
 from discern.api.deps import get_db, get_inference_engine
 from discern.api.schemas import (
     BatchOut,
+    ExportHintsOut,
     ExtractionOut,
     FieldOut,
     FieldPatch,
@@ -25,6 +26,9 @@ from discern.api.schemas import (
     SearchResponse,
     StatsOut,
     StatusPatch,
+    TemplateFieldOut,
+    TemplateOut,
+    TemplatesOut,
 )
 from discern.config import settings
 from discern.db.models import Document, ExtractionField
@@ -75,6 +79,7 @@ def _doc_to_out(doc: Document, request_base: str = "") -> ExtractionOut:
         id=doc.id,
         doc_type=doc.doc_type,
         doc_type_confidence=doc.doc_type_confidence,
+        template_category=doc.template_category,
         fields=fields,
         overlay_url=f"{request_base}/extractions/{doc.id}/overlay",
         created_at=doc.created_at,
@@ -113,6 +118,7 @@ def _process_upload(
         original_filename=filename,
         doc_type=result.doc_type,
         doc_type_confidence=result.doc_type_confidence,
+        template_category=engine.schema.category_for(result.doc_type),
         image_path=str(orig_path),
         overlay_path=str(overlay_path),
     )
@@ -142,6 +148,42 @@ def _process_upload(
 # ---------------------------------------------------------------------------
 # Routes — meta
 # ---------------------------------------------------------------------------
+
+
+@app.get("/templates", response_model=TemplatesOut, tags=["meta"])
+def list_templates(engine: InferenceEngine = Depends(get_inference_engine)) -> TemplatesOut:
+    """Return the full template registry from configs/documents.yaml."""
+    templates: list[TemplateOut] = []
+    for key, spec in engine.schema.document_types.items():
+        templates.append(
+            TemplateOut(
+                key=key,
+                label=spec.label or key.replace("_", " ").title(),
+                category=spec.category,
+                description=spec.description,
+                fields=[
+                    TemplateFieldOut(
+                        name=f.name,
+                        value_type=f.value_type,
+                        capture=f.capture,
+                        options=f.options,
+                        required=f.required,
+                        nullable=f.nullable,
+                        sensitive=f.sensitive,
+                    )
+                    for f in spec.fields
+                ],
+                export_hints=ExportHintsOut(
+                    format=spec.export_hints.format,
+                    date_field=spec.export_hints.date_field,
+                    amount_field=spec.export_hints.amount_field,
+                    title_field=spec.export_hints.title_field,
+                )
+                if spec.export_hints
+                else None,
+            )
+        )
+    return TemplatesOut(templates=templates)
 
 
 @app.get("/health", response_model=HealthOut, tags=["meta"])

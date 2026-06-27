@@ -23,6 +23,7 @@ class ExtractionOut(BaseModel):
     id: str
     doc_type: str
     doc_type_confidence: float
+    template_category: str | None = None
     fields: list[FieldOut]
     overlay_url: str
     created_at: datetime
@@ -59,3 +60,33 @@ class StatsOut(BaseModel):
     by_doc_type: dict[str, int]
     avg_confidence: float
     review_queue: int
+
+
+class TemplateFieldOut(BaseModel):
+    name: str
+    value_type: str
+    capture: str
+    options: list[str] | None = None
+    required: bool = False
+    nullable: bool = False
+    sensitive: bool = False
+
+
+class ExportHintsOut(BaseModel):
+    format: str
+    date_field: str | None = None
+    amount_field: str | None = None
+    title_field: str | None = None
+
+
+class TemplateOut(BaseModel):
+    key: str
+    label: str
+    category: str
+    description: str
+    fields: list[TemplateFieldOut]
+    export_hints: ExportHintsOut | None = None
+
+
+class TemplatesOut(BaseModel):
+    templates: list[TemplateOut]

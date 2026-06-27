@@ -73,6 +73,7 @@ def mock_engine():
     engine._checkpoint_loaded = False
     engine.predict.return_value = _dummy_result()
     engine.validate_upload = MagicMock()
+    engine.schema = parse_document_schema(load_document_schema())
     return engine
 
 
