@@ -20,6 +20,7 @@ class Document(Base):
     original_filename: Mapped[str] = mapped_column(String(255), nullable=False)
     doc_type: Mapped[str] = mapped_column(String(64), nullable=False)
     doc_type_confidence: Mapped[float] = mapped_column(Float, nullable=False)
+    template_category: Mapped[str | None] = mapped_column(String(32), nullable=True)
     image_path: Mapped[str] = mapped_column(String(512), nullable=False)
     overlay_path: Mapped[str] = mapped_column(String(512), nullable=False)
     follow_up_status: Mapped[str | None] = mapped_column(String(32), nullable=True)
