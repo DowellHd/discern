@@ -1,5 +1,35 @@
 export type FollowUpStatus = "pending" | "contacted" | "done" | null;
 
+export interface TemplateField {
+  name: string;
+  value_type: string;
+  capture: string;
+  options: string[] | null;
+  required: boolean;
+  nullable: boolean;
+  sensitive: boolean;
+}
+
+export interface ExportHints {
+  format: string;
+  date_field: string | null;
+  amount_field: string | null;
+  title_field: string | null;
+}
+
+export interface Template {
+  key: string;
+  label: string;
+  category: string;
+  description: string;
+  fields: TemplateField[];
+  export_hints: ExportHints | null;
+}
+
+export interface TemplatesResponse {
+  templates: Template[];
+}
+
 export interface Field {
   name: string;
   value: string | null;
@@ -13,6 +43,7 @@ export interface Extraction {
   id: string;
   doc_type: string;
   doc_type_confidence: number;
+  template_category: string | null;
   fields: Field[];
   overlay_url: string;
   created_at: string;

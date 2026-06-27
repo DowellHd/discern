@@ -4,8 +4,8 @@ import { UploadZone } from "@/components/UploadZone";
 import { ExtractionResult } from "@/components/ExtractionResult";
 import { SearchPanel } from "@/components/SearchPanel";
 import { StatsPanel } from "@/components/StatsPanel";
-import { extractDocument } from "@/lib/api";
-import type { Extraction } from "@/lib/types";
+import { extractDocument, getTemplates } from "@/lib/api";
+import type { Extraction, Template } from "@/lib/types";
 
 const WARM_UP_DELAY_MS = 10_000;
 
@@ -17,12 +17,11 @@ const TABS: { id: Tab; label: string }[] = [
   { id: "stats",  label: "Stats" },
 ];
 
-const DOC_TYPE_OPTIONS = [
-  { value: "",                label: "Auto-detect" },
-  { value: "connection_card", label: "Connection Card" },
-  { value: "prayer_request",  label: "Prayer Request" },
-  { value: "giving_envelope", label: "Giving Envelope" },
-];
+const CATEGORY_LABELS: Record<string, string> = {
+  church: "Church",
+  personal: "Personal",
+  business: "Business",
+};
 
 export default function Home() {
   const [extraction, setExtraction] = useState<Extraction | null>(null);
@@ -31,7 +30,14 @@ export default function Home() {
   const [error, setError] = useState<string | null>(null);
   const [tab, setTab] = useState<Tab>("upload");
   const [docType, setDocType] = useState("");
+  const [templates, setTemplates] = useState<Template[]>([]);
   const warmTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(() => {
+    getTemplates()
+      .then((r) => setTemplates(r.templates))
+      .catch(() => {/* API may be cold; fallback to empty (auto-detect only) */});
+  }, []);
 
   useEffect(() => {
     if (loading) {
@@ -133,7 +139,7 @@ export default function Home() {
                 <div className="px-1">
                   <h1 className="text-lg font-bold tracking-tight" style={{ color: "#0f172a" }}>Upload Document</h1>
                   <p className="text-sm mt-0.5 leading-relaxed" style={{ color: "#64748b" }}>
-                    Photo, scan, or PDF of a connection card, prayer request, or giving envelope.
+                    Photo, scan, or PDF — receipts, business cards, forms, church records, and more.
                   </p>
                 </div>
 
@@ -158,9 +164,21 @@ export default function Home() {
                       cursor: "pointer",
                     }}
                   >
-                    {DOC_TYPE_OPTIONS.map(({ value, label }) => (
-                      <option key={value} value={value}>{label}</option>
-                    ))}
+                    <option value="">Auto-detect</option>
+                    {templates.length > 0 ? (
+                      Object.entries(
+                        templates.reduce<Record<string, Template[]>>((acc, t) => {
+                          (acc[t.category] ??= []).push(t);
+                          return acc;
+                        }, {})
+                      ).map(([cat, group]) => (
+                        <optgroup key={cat} label={CATEGORY_LABELS[cat] ?? cat}>
+                          {group.map((t) => (
+                            <option key={t.key} value={t.key}>{t.label}</option>
+                          ))}
+                        </optgroup>
+                      ))
+                    ) : null}
                   </select>
                   {!docType && (
                     <p className="text-xs mt-1" style={{ color: "#94a3b8" }}>
@@ -243,7 +261,7 @@ function EmptyResultState() {
         <div className="space-y-1.5">
           <p className="text-base font-bold" style={{ color: "#334155" }}>No document extracted yet</p>
           <p className="text-sm" style={{ color: "#94a3b8" }}>
-            Upload a connection card, prayer request,<br />or giving envelope to see structured fields here
+            Upload any document — receipt, business card,<br />form, or church record — to see structured fields here
           </p>
         </div>
         <div className="flex items-center justify-center gap-3 pt-1">

@@ -1,4 +1,4 @@
-import type { BatchOut, Extraction, FollowUpStatus, SearchResponse, Stats } from "./types";
+import type { BatchOut, Extraction, FollowUpStatus, SearchResponse, Stats, TemplatesResponse } from "./types";
 
 const BASE = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000";
 
@@ -73,6 +73,10 @@ export async function deleteExtraction(id: string): Promise<void> {
 
 export async function getStats(): Promise<Stats> {
   return _json(await fetch(`${BASE}/stats`));
+}
+
+export async function getTemplates(): Promise<TemplatesResponse> {
+  return _json(await fetch(`${BASE}/templates`));
 }
 
 export function exportCsvUrl(doc_type?: string): string {
