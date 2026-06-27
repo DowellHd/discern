@@ -4,6 +4,16 @@ This file is loaded every session. All rules here override default behavior.
 
 ---
 
+## Product North Star
+
+Discern is a **general-purpose personal document-intelligence app**. Goal: a tool a person opens weekly — snap or upload any document, get clean structured + searchable data back, find it again later.
+
+**Lead use cases (most universally daily):** receipts → expense log; business cards → contacts; forms / handwritten notes / whiteboard photos → searchable text.
+
+The existing church connection/prayer card schema is one built-in template category (`church`) among many, not the whole app. Generalize additively — never break the working church templates.
+
+---
+
 ## Commit / Push Rules (DO NOT VIOLATE)
 
 - Do NOT mention Claude, AI, assistant, or automation in commit messages, PR titles, or trailers
@@ -53,12 +63,12 @@ discern/
     training/    # train loop, config, checkpoints, experiment logging
     inference/   # load model, run on an image, return overlay + structured JSON
     eval/        # metrics: field-level P/R/F1, OCR CER/WER, latency
-    api/         # FastAPI: /extract (upload image), /search, /health
+    api/         # FastAPI: /extract, /templates, /search, /health, stats, export
     db/          # Postgres models + migrations
   scripts/       # generate_data.py, train.py, evaluate.py
   frontend/      # Next.js: drag-drop upload, overlay, editable fields, search
   tests/
-  configs/       # documents.yaml (the schema) + run/training configs
+  configs/       # documents.yaml (template registry) + run/training configs
   docker/        # Dockerfile(s) + docker-compose for api + db
   README.md
 ```
@@ -67,26 +77,33 @@ discern/
 
 ## Schema Contract
 
-`configs/documents.yaml` is the **single source of truth** for document domains.
+`configs/documents.yaml` is the **single source of truth** for all document templates.
+- Each template has: `key` (the dict key), `label`, `category`, `description`, `fields`, optional `export_hints`
+- Categories: `church` | `personal` | `business`
 - The synthetic generator labels against it
 - Model field classes derive from it
 - Eval iterates its field list
-- DB columns map to it
-- UI renders from it
+- DB `doc_type` column stores the template key; `template_category` stores the category
+- UI renders template options from the `/templates` API endpoint (not hardcoded)
 
 Swapping `configs/documents.yaml` is how the document domain is retargeted.
 
 ---
 
-## Milestones
+## Phase Plan
 
-1. STEP 0: memory + repo scaffold + tooling + `configs/documents.yaml`
-2. Synthetic data generator (driven by schema) + preprocessing + tests
-3. Model + training loop + checkpointing on synthetic data
-4. Inference module + FastAPI `/extract` and `/search` + Postgres storage
-5. Eval harness + metrics report, broken down by capture type
-6. Next.js UI (upload, overlay, edit, search)
-7. Docker + README (full deployment steps for Vercel + Render + subdomain)
+- **Phase 0** — Vision + foundations: expanded template registry, document_type plumbing end-to-end, CLAUDE.md updated. ✅
+- **Phase 1** — Visual + UX overhaul: design system, upload states, cold-start UX, results hero screen, PWA, a11y.
+- **Phase 2** — Generalize document types: synthetic data for new templates, classifier, model extension, batch upload.
+- **Phase 3** — Daily-use features: library/search/folders, type-aware exports (vCard/iCal/expense CSV), review queue.
+- **Phase 4** — Intelligence layer: optional LLM post-processor, feature-flagged, cost-aware.
+- **Phase 5** — Accounts + privacy: lightweight auth, no-signup demo mode, encryption at rest.
+- **Phase 6** — MLOps + evals: per-type metrics, labeled benchmark, model card, feedback loop, README results table.
+
+**GLOBAL RULES (apply every phase):**
+- NEVER push or deploy. Make changes, run the gate, show diff + local preview, then STOP. User pushes.
+- Work one phase at a time. Within a phase, small milestones, summarize, wait for go-ahead.
+- Don't break /extract and /search. Generalize additively; keep church templates.
 
 ---
 
