@@ -1,8 +1,21 @@
 # configs/documents.yaml
-# Source of truth for synthetic generation, model field classes,
-# evaluation, DB columns, and UI rendering. Swap this file to retarget the domain.
+# Template registry — single source of truth for all document types.
+# Each template drives: synthetic generation, model field classes, eval, DB, and UI.
+#
+# Fields:
+#   label          Human-readable name shown in the UI
+#   category       Grouping: church | personal | business
+#   description    Short description of the document type
+#   export_hints   (optional) Maps to a type-aware export format
+#   fields         Ordered list of extractable fields
+
 document_types:
+
+  # ── Church templates ──────────────────────────────────────────────────────
+
   connection_card:
+    label: "Connection Card"
+    category: church
     description: Welcome/connect card filled out during a service
     fields:
       - name: full_name
@@ -30,13 +43,16 @@ document_types:
       - name: notes
         value_type: freetext
         capture: handwritten
+
   prayer_request:
+    label: "Prayer Request"
+    category: church
     description: Prayer request card
     fields:
       - name: requester_name
         value_type: string
         capture: handwritten
-        nullable: true            # may be left anonymous
+        nullable: true          # may be left anonymous
       - name: service_date
         value_type: date
         capture: handwritten
@@ -47,11 +63,14 @@ document_types:
       - name: request_text
         value_type: freetext
         capture: handwritten
-        sensitive: true           # mask in logs and the metrics report
+        sensitive: true         # mask in logs and the metrics report
       - name: contact_ok
         value_type: bool
         capture: checkbox
+
   giving_envelope:
+    label: "Giving Envelope"
+    category: church
     description: Tithe/offering envelope with donor and amount information
     fields:
       - name: donor_name
@@ -72,6 +91,196 @@ document_types:
         value_type: freetext
         capture: handwritten
         nullable: true
+
+  # ── Personal / daily templates ────────────────────────────────────────────
+
+  receipt:
+    label: "Receipt"
+    category: personal
+    description: Retail/restaurant/service receipt for expense tracking
+    export_hints:
+      format: expense_csv
+      date_field: transaction_date
+      amount_field: total_amount
+    fields:
+      - name: merchant_name
+        value_type: string
+        capture: text
+        required: true
+      - name: transaction_date
+        value_type: date
+        capture: text
+      - name: total_amount
+        value_type: string
+        capture: text
+      - name: tax_amount
+        value_type: string
+        capture: text
+        nullable: true
+      - name: payment_method
+        value_type: enum
+        options: [cash, credit, debit, other]
+        capture: text
+        nullable: true
+      - name: category
+        value_type: enum
+        options: [food, transport, office, health, retail, utilities, other]
+        capture: text
+        nullable: true
+      - name: items_summary
+        value_type: freetext
+        capture: text
+        nullable: true
+
+  business_card:
+    label: "Business Card"
+    category: personal
+    description: Business/contact card with professional details
+    export_hints:
+      format: vcard
+    fields:
+      - name: full_name
+        value_type: string
+        capture: text
+        required: true
+      - name: job_title
+        value_type: string
+        capture: text
+        nullable: true
+      - name: company
+        value_type: string
+        capture: text
+        nullable: true
+      - name: email
+        value_type: email
+        capture: text
+        nullable: true
+      - name: phone
+        value_type: phone
+        capture: text
+        nullable: true
+      - name: website
+        value_type: url
+        capture: text
+        nullable: true
+      - name: address
+        value_type: freetext
+        capture: text
+        nullable: true
+
+  handwritten_note:
+    label: "Handwritten Note"
+    category: personal
+    description: Handwritten note or memo — extracts full text content as searchable text
+    fields:
+      - name: note_text
+        value_type: freetext
+        capture: handwritten
+        required: true
+      - name: date_written
+        value_type: date
+        capture: handwritten
+        nullable: true
+      - name: author
+        value_type: string
+        capture: handwritten
+        nullable: true
+
+  generic_form:
+    label: "Generic Form"
+    category: personal
+    description: Any structured form not matching a specific template
+    fields:
+      - name: form_title
+        value_type: string
+        capture: text
+        nullable: true
+      - name: form_content
+        value_type: freetext
+        capture: handwritten
+        required: true
+      - name: form_date
+        value_type: date
+        capture: text
+        nullable: true
+
+  # ── Business templates ────────────────────────────────────────────────────
+
+  invoice:
+    label: "Invoice"
+    category: business
+    description: Vendor invoice with line items and payment terms
+    export_hints:
+      format: expense_csv
+      date_field: invoice_date
+      amount_field: total_due
+    fields:
+      - name: vendor_name
+        value_type: string
+        capture: text
+        required: true
+      - name: invoice_number
+        value_type: string
+        capture: text
+        nullable: true
+      - name: invoice_date
+        value_type: date
+        capture: text
+      - name: due_date
+        value_type: date
+        capture: text
+        nullable: true
+      - name: subtotal
+        value_type: string
+        capture: text
+        nullable: true
+      - name: tax_amount
+        value_type: string
+        capture: text
+        nullable: true
+      - name: total_due
+        value_type: string
+        capture: text
+        required: true
+      - name: payment_terms
+        value_type: freetext
+        capture: text
+        nullable: true
+
+  event_flyer:
+    label: "Event Flyer"
+    category: business
+    description: Event or promotional flyer with date, location, and key details
+    export_hints:
+      format: ical
+      date_field: event_date
+      title_field: event_name
+    fields:
+      - name: event_name
+        value_type: string
+        capture: text
+        required: true
+      - name: event_date
+        value_type: date
+        capture: text
+        nullable: true
+      - name: event_time
+        value_type: string
+        capture: text
+        nullable: true
+      - name: location
+        value_type: freetext
+        capture: text
+        nullable: true
+      - name: organizer
+        value_type: string
+        capture: text
+        nullable: true
+      - name: description
+        value_type: freetext
+        capture: text
+        nullable: true
+
 # Bulletins are semi-structured: detect blocks/regions, not fixed fields.
 region_types:
   bulletin:
