@@ -32,9 +32,9 @@ def test_engine_creates_without_checkpoint(schema) -> None:
     assert eng._checkpoint_loaded is False
 
 
-def test_predict_returns_inference_result(engine, sample_image) -> None:
+def test_predict_returns_inference_result(engine, sample_image, schema) -> None:
     result = engine.predict(sample_image)
-    assert result.doc_type in ("connection_card", "prayer_request")
+    assert result.doc_type in schema.document_types
     assert 0.0 <= result.doc_type_confidence <= 1.0
 
 

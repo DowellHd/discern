@@ -249,3 +249,63 @@ def test_preprocess_pixel_range(blank_img: Image.Image) -> None:
     result = preprocess(blank_img)
     arr = np.array(result)
     assert arr.min() >= 0 and arr.max() <= 255
+
+
+# ---------------------------------------------------------------------------
+# All 9 document types generate without error
+# ---------------------------------------------------------------------------
+
+
+ALL_DOC_TYPES = [
+    "connection_card",
+    "prayer_request",
+    "giving_envelope",
+    "receipt",
+    "business_card",
+    "handwritten_note",
+    "generic_form",
+    "invoice",
+    "event_flyer",
+]
+
+
+@pytest.mark.parametrize("doc_type", ALL_DOC_TYPES)
+def test_generate_all_doc_types(gen: DocumentGenerator, doc_type: str) -> None:
+    sample = gen.generate(doc_type)
+    assert sample.doc_type == doc_type
+    assert isinstance(sample.image, Image.Image)
+    assert len(sample.labels) > 0
+
+
+# ---------------------------------------------------------------------------
+# url value type
+# ---------------------------------------------------------------------------
+
+
+def test_synthesize_url(synth: ValueSynthesizer) -> None:
+    f = FieldSpec(name="website", value_type="url", capture="text")
+    val = synth.synthesize(f)
+    assert isinstance(val, str) and ("http://" in val or "https://" in val)
+
+
+# ---------------------------------------------------------------------------
+# String field-name-aware synthesis
+# ---------------------------------------------------------------------------
+
+
+def test_string_company_field(synth: ValueSynthesizer) -> None:
+    f = FieldSpec(name="merchant_name", value_type="string", capture="text")
+    val = synth.synthesize(f)
+    assert isinstance(val, str) and len(val) > 0
+
+
+def test_string_amount_field(synth: ValueSynthesizer) -> None:
+    f = FieldSpec(name="total_amount", value_type="string", capture="text")
+    val = synth.synthesize(f)
+    assert isinstance(val, str) and val.startswith("$")
+
+
+def test_string_invoice_number_field(synth: ValueSynthesizer) -> None:
+    f = FieldSpec(name="invoice_number", value_type="string", capture="text")
+    val = synth.synthesize(f)
+    assert isinstance(val, str) and val.startswith("INV-")

@@ -71,6 +71,22 @@ def test_extractor_doc_type_shape(extractor: FieldExtractor) -> None:
     assert out["doc_type"].shape == (2, len(DOC_TYPES))
 
 
+def test_extractor_doc_type_covers_all_templates(extractor: FieldExtractor) -> None:
+    expected = {
+        "connection_card",
+        "prayer_request",
+        "giving_envelope",
+        "receipt",
+        "business_card",
+        "handwritten_note",
+        "generic_form",
+        "invoice",
+        "event_flyer",
+    }
+    assert set(DOC_TYPES) == expected
+    assert len(DOC_TYPES) == 9
+
+
 def test_extractor_visit_type_shape(extractor: FieldExtractor) -> None:
     x = torch.randn(2, 1, 224, 224)
     out = extractor(x)

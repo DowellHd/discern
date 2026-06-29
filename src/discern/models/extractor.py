@@ -9,7 +9,18 @@ from discern.models.backbone import FEATURE_DIM, DiscernBackbone
 from discern.models.heads import ClassificationHead, MultiLabelHead
 
 # Ordered lists define label→index mapping for each head.
-DOC_TYPES = ["connection_card", "prayer_request"]
+# Order is stable: indices are stored in model checkpoints.
+DOC_TYPES = [
+    "connection_card",  # 0
+    "prayer_request",  # 1
+    "giving_envelope",  # 2
+    "receipt",  # 3
+    "business_card",  # 4
+    "handwritten_note",  # 5
+    "generic_form",  # 6
+    "invoice",  # 7
+    "event_flyer",  # 8
+]
 VISIT_TYPE_OPTIONS = ["first_time", "returning", "regular"]
 INTERESTS_OPTIONS = ["baptism", "community_group", "volunteering", "prayer", "membership"]
 CATEGORY_OPTIONS = ["healing", "family", "guidance", "thanksgiving", "other"]

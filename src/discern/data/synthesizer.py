@@ -26,7 +26,7 @@ class ValueSynthesizer:
 
         match field.value_type:
             case "string":
-                return self._faker.name()
+                return self._synthesize_string(field.name)
             case "email":
                 return self._faker.email()
             case "phone":
@@ -35,6 +35,8 @@ class ValueSynthesizer:
                 delta = timedelta(days=self._rng.randint(0, 365))
                 d = date.today() - delta
                 return d.strftime("%m/%d/%Y")
+            case "url":
+                return self._faker.url()
             case "enum":
                 assert field.options
                 return self._rng.choice(field.options)
@@ -48,6 +50,27 @@ class ValueSynthesizer:
                 return self._faker.sentence(nb_words=self._rng.randint(8, 20))
             case _:
                 return self._faker.word()
+
+    def _synthesize_string(self, field_name: str) -> str:
+        n = field_name.lower()
+        if any(k in n for k in ("company", "vendor", "merchant", "organizer")):
+            return self._faker.company()
+        if "job_title" in n:
+            return self._faker.job()
+        if "event_name" in n:
+            return self._faker.catch_phrase()
+        if "form_title" in n:
+            return self._faker.bs().title()
+        if "invoice_number" in n:
+            return self._faker.bothify("INV-####??").upper()
+        if any(k in n for k in ("amount", "total", "subtotal", "tax")):
+            return f"${self._rng.uniform(1.0, 999.0):.2f}"
+        if "time" in n:
+            hour = self._rng.randint(1, 12)
+            minute = self._rng.choice(["00", "15", "30", "45"])
+            period = self._rng.choice(["AM", "PM"])
+            return f"{hour}:{minute} {period}"
+        return self._faker.name()
 
     def synthesize_document(self, fields: list[FieldSpec]) -> dict[str, Any]:
         """Return a {field_name: value} dict for every field in the list."""

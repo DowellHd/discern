@@ -38,11 +38,11 @@ def test_dataset_item_shapes(schema) -> None:
     assert targets["interests"].shape == (len(INTERESTS_OPTIONS),)
 
 
-def test_dataset_doc_types_alternate(schema) -> None:
-    ds = SyntheticDataset(schema, size=4, seed=0)
-    types = [ds[i][1]["doc_type"].item() for i in range(4)]
-    # indices alternate: 0, 1, 0, 1
-    assert types == [0, 1, 0, 1]
+def test_dataset_doc_types_cycle(schema) -> None:
+    n = len(DOC_TYPES)
+    ds = SyntheticDataset(schema, size=n, seed=0)
+    types = [ds[i][1]["doc_type"].item() for i in range(n)]
+    assert types == list(range(n))
 
 
 def test_encode_targets_connection_card() -> None:
