@@ -2,10 +2,11 @@
 import { useState, useCallback, useEffect, useRef } from "react";
 import { UploadZone } from "@/components/UploadZone";
 import { ExtractionResult } from "@/components/ExtractionResult";
+import { BatchResultList } from "@/components/BatchResultList";
 import { SearchPanel } from "@/components/SearchPanel";
 import { StatsPanel } from "@/components/StatsPanel";
-import { extractDocument, getTemplates } from "@/lib/api";
-import type { Extraction, Template } from "@/lib/types";
+import { extractDocument, extractBatch, getTemplates } from "@/lib/api";
+import type { BatchOut, Extraction, Template } from "@/lib/types";
 
 const WARM_UP_DELAY_MS = 10_000;
 
@@ -25,12 +26,14 @@ const CATEGORY_LABELS: Record<string, string> = {
 
 export default function Home() {
   const [extraction, setExtraction] = useState<Extraction | null>(null);
+  const [batchResult, setBatchResult] = useState<BatchOut | null>(null);
   const [loading, setLoading] = useState(false);
   const [warmingUp, setWarmingUp] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [tab, setTab] = useState<Tab>("upload");
   const [docType, setDocType] = useState("");
   const [templates, setTemplates] = useState<Template[]>([]);
+  const [batchMode, setBatchMode] = useState(false);
   const warmTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
@@ -52,6 +55,7 @@ export default function Home() {
 
   const handleFile = useCallback(async (file: File) => {
     setError(null);
+    setBatchResult(null);
     setLoading(true);
     try {
       const result = await extractDocument(file, docType || undefined);
@@ -62,6 +66,42 @@ export default function Home() {
       setLoading(false);
     }
   }, [docType]);
+
+  const handleFiles = useCallback(async (files: File[]) => {
+    setError(null);
+    setExtraction(null);
+    setLoading(true);
+    try {
+      const result = await extractBatch(files);
+      setBatchResult(result);
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : "Batch upload failed");
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  function toggleBatchMode(next: boolean) {
+    setBatchMode(next);
+    setExtraction(null);
+    setBatchResult(null);
+    setError(null);
+  }
+
+  const rightPanel = (() => {
+    if (batchResult) {
+      return (
+        <BatchResultList
+          batch={batchResult}
+          onSelect={(e) => { setExtraction(e); setBatchResult(null); }}
+        />
+      );
+    }
+    if (extraction) {
+      return <ExtractionResult extraction={extraction} onUpdate={setExtraction} />;
+    }
+    return <EmptyResultState />;
+  })();
 
   return (
     <div className="min-h-screen flex flex-col">
@@ -136,63 +176,107 @@ export default function Home() {
           <aside className="w-full sm:w-80 lg:w-88 flex-shrink-0 flex flex-col gap-4" aria-label="Controls">
             {tab === "upload" ? (
               <>
-                <div className="px-1">
-                  <h1 className="text-lg font-bold tracking-tight" style={{ color: "#0f172a" }}>Upload Document</h1>
-                  <p className="text-sm mt-0.5 leading-relaxed" style={{ color: "#64748b" }}>
-                    Photo, scan, or PDF — receipts, business cards, forms, church records, and more.
-                  </p>
-                </div>
-
-                {/* Document type selector */}
-                <div>
-                  <label
-                    htmlFor="doc-type-select"
-                    className="block text-xs font-semibold mb-1.5"
-                    style={{ color: "#64748b" }}
-                  >
-                    Document type
-                  </label>
-                  <select
-                    id="doc-type-select"
-                    value={docType}
-                    onChange={(e) => setDocType(e.target.value)}
-                    className="w-full rounded-xl px-3 py-2 text-sm font-medium outline-none focus-visible:ring-2 focus-visible:ring-indigo-400"
-                    style={{
-                      background: "#fff",
-                      border: "1.5px solid #e2e8f0",
-                      color: "#334155",
-                      cursor: "pointer",
-                    }}
-                  >
-                    <option value="">Auto-detect</option>
-                    {templates.length > 0 ? (
-                      Object.entries(
-                        templates.reduce<Record<string, Template[]>>((acc, t) => {
-                          (acc[t.category] ??= []).push(t);
-                          return acc;
-                        }, {})
-                      ).map(([cat, group]) => (
-                        <optgroup key={cat} label={CATEGORY_LABELS[cat] ?? cat}>
-                          {group.map((t) => (
-                            <option key={t.key} value={t.key}>{t.label}</option>
-                          ))}
-                        </optgroup>
-                      ))
-                    ) : null}
-                  </select>
-                  {!docType && (
-                    <p className="text-xs mt-1" style={{ color: "#94a3b8" }}>
-                      Select the type for best results — the classifier is untrained.
+                <div className="px-1 flex items-start justify-between gap-2">
+                  <div>
+                    <h1 className="text-lg font-bold tracking-tight" style={{ color: "#0f172a" }}>Upload Document</h1>
+                    <p className="text-sm mt-0.5 leading-relaxed" style={{ color: "#64748b" }}>
+                      Photo, scan, or PDF — receipts, business cards, forms, church records, and more.
                     </p>
-                  )}
+                  </div>
                 </div>
 
-                <UploadZone
-                  key={extraction?.id ?? "empty"}
-                  onFile={handleFile}
-                  loading={loading}
-                  warmingUp={warmingUp}
-                />
+                {/* Single / Batch toggle */}
+                <div
+                  className="flex items-center gap-1 self-start rounded-lg p-1"
+                  style={{ background: "#f1f5f9" }}
+                  role="group"
+                  aria-label="Upload mode"
+                >
+                  {([false, true] as const).map((isBatch) => (
+                    <button
+                      key={String(isBatch)}
+                      onClick={() => toggleBatchMode(isBatch)}
+                      aria-pressed={batchMode === isBatch}
+                      className="transition-all outline-none focus-visible:ring-2 focus-visible:ring-indigo-400"
+                      style={{
+                        padding: "4px 12px",
+                        borderRadius: 6,
+                        fontSize: 12,
+                        fontWeight: 600,
+                        background: batchMode === isBatch ? "#ffffff" : "transparent",
+                        color: batchMode === isBatch ? "#334155" : "#94a3b8",
+                        boxShadow: batchMode === isBatch ? "0 1px 2px rgba(0,0,0,0.1)" : "none",
+                        border: "none",
+                        cursor: "pointer",
+                      }}
+                    >
+                      {isBatch ? "Batch" : "Single"}
+                    </button>
+                  ))}
+                </div>
+
+                {/* Document type selector — single mode only */}
+                {!batchMode && (
+                  <div>
+                    <label
+                      htmlFor="doc-type-select"
+                      className="block text-xs font-semibold mb-1.5"
+                      style={{ color: "#64748b" }}
+                    >
+                      Document type
+                    </label>
+                    <select
+                      id="doc-type-select"
+                      value={docType}
+                      onChange={(e) => setDocType(e.target.value)}
+                      className="w-full rounded-xl px-3 py-2 text-sm font-medium outline-none focus-visible:ring-2 focus-visible:ring-indigo-400"
+                      style={{
+                        background: "#fff",
+                        border: "1.5px solid #e2e8f0",
+                        color: "#334155",
+                        cursor: "pointer",
+                      }}
+                    >
+                      <option value="">Auto-detect</option>
+                      {templates.length > 0 ? (
+                        Object.entries(
+                          templates.reduce<Record<string, Template[]>>((acc, t) => {
+                            (acc[t.category] ??= []).push(t);
+                            return acc;
+                          }, {})
+                        ).map(([cat, group]) => (
+                          <optgroup key={cat} label={CATEGORY_LABELS[cat] ?? cat}>
+                            {group.map((t) => (
+                              <option key={t.key} value={t.key}>{t.label}</option>
+                            ))}
+                          </optgroup>
+                        ))
+                      ) : null}
+                    </select>
+                    {!docType && (
+                      <p className="text-xs mt-1" style={{ color: "#94a3b8" }}>
+                        Select the type for best results — the classifier is untrained.
+                      </p>
+                    )}
+                  </div>
+                )}
+
+                {batchMode ? (
+                  <UploadZone
+                    key="batch"
+                    mode="batch"
+                    onFiles={handleFiles}
+                    loading={loading}
+                  />
+                ) : (
+                  <UploadZone
+                    key={extraction?.id ?? "single"}
+                    mode="single"
+                    onFile={handleFile}
+                    loading={loading}
+                    warmingUp={warmingUp}
+                  />
+                )}
 
                 {error && (
                   <div
@@ -203,7 +287,9 @@ export default function Home() {
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                     </svg>
                     <div>
-                      <p className="text-sm font-semibold text-red-800">Extraction failed</p>
+                      <p className="text-sm font-semibold text-red-800">
+                        {batchMode ? "Batch upload failed" : "Extraction failed"}
+                      </p>
                       <p className="text-xs text-red-600 mt-0.5 leading-relaxed">{error}</p>
                     </div>
                   </div>
@@ -220,6 +306,7 @@ export default function Home() {
                 <SearchPanel
                   onSelect={(e) => {
                     setExtraction(e);
+                    setBatchResult(null);
                     setTab("upload");
                   }}
                 />
@@ -229,11 +316,7 @@ export default function Home() {
 
           {/* Right panel */}
           <section className="flex-1 min-w-0" aria-label="Extraction result">
-            {extraction ? (
-              <ExtractionResult extraction={extraction} onUpdate={setExtraction} />
-            ) : (
-              <EmptyResultState />
-            )}
+            {rightPanel}
           </section>
         </main>
       )}
