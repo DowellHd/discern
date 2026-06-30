@@ -1,4 +1,4 @@
-"""FastAPI application: /extract, /search, /health, stats, export, and review endpoints."""
+"""FastAPI application: /extract, /search, /health, stats, export, review, and type-aware export endpoints."""
 
 from __future__ import annotations
 
@@ -417,4 +417,159 @@ def export_csv(
         _generate(),
         media_type="text/csv",
         headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+    )
+
+
+# ---------------------------------------------------------------------------
+# Type-aware exports: vCard, iCal, expense CSV
+# ---------------------------------------------------------------------------
+
+
+def _fields_dict(doc: Document) -> dict[str, str | None]:
+    return {f.field_name: f.field_value for f in doc.fields}
+
+
+def _make_vcard(fields: dict[str, str | None]) -> str:
+    lines = ["BEGIN:VCARD", "VERSION:3.0"]
+    if fn := fields.get("full_name"):
+        lines.append(f"FN:{fn}")
+        parts = fn.rsplit(" ", 1)
+        last, first = (parts[-1], parts[0]) if len(parts) > 1 else ("", fn)
+        lines.append(f"N:{last};{first};;;")
+    if title := fields.get("job_title"):
+        lines.append(f"TITLE:{title}")
+    if org := fields.get("company"):
+        lines.append(f"ORG:{org}")
+    if email := fields.get("email"):
+        lines.append(f"EMAIL;TYPE=INTERNET:{email}")
+    if phone := fields.get("phone"):
+        lines.append(f"TEL;TYPE=VOICE:{phone}")
+    if url := fields.get("website"):
+        lines.append(f"URL:{url}")
+    if addr := fields.get("address"):
+        lines.append(f"ADR;TYPE=WORK:;;{addr.replace(chr(10), ' ')};;;;")
+    lines.append("END:VCARD")
+    return "\r\n".join(lines) + "\r\n"
+
+
+def _make_ical(fields: dict[str, str | None], doc_id: str) -> str:
+    from datetime import datetime as _dt
+
+    stamp = _dt.utcnow().strftime("%Y%m%dT%H%M%SZ")
+    lines = [
+        "BEGIN:VCALENDAR",
+        "VERSION:2.0",
+        "PRODID:-//Discern//Document Intelligence//EN",
+        "BEGIN:VEVENT",
+        f"UID:{doc_id}@discern",
+        f"DTSTAMP:{stamp}",
+    ]
+    if summary := fields.get("event_name"):
+        lines.append(f"SUMMARY:{summary}")
+    if date_str := fields.get("event_date"):
+        try:
+            d = _dt.strptime(date_str, "%m/%d/%Y")
+            lines.append(f"DTSTART;VALUE=DATE:{d.strftime('%Y%m%d')}")
+            lines.append(f"DTEND;VALUE=DATE:{d.strftime('%Y%m%d')}")
+        except ValueError:
+            pass
+    if loc := fields.get("location"):
+        lines.append(f"LOCATION:{loc.replace(chr(10), ' ')}")
+    if desc := fields.get("description"):
+        lines.append(f"DESCRIPTION:{desc.replace(chr(10), chr(92) + 'n')}")
+    if org := fields.get("organizer"):
+        lines.append(f"ORGANIZER;CN={org}:MAILTO:noreply@discern.app")
+    lines += ["END:VEVENT", "END:VCALENDAR"]
+    return "\r\n".join(lines) + "\r\n"
+
+
+def _make_expense_csv(doc_type: str, fields: dict[str, str | None]) -> str:
+    buf = io.StringIO()
+    writer = csv.writer(buf)
+    if doc_type == "receipt":
+        writer.writerow(
+            ["date", "merchant", "amount", "tax", "payment_method", "category", "items"]
+        )
+        writer.writerow(
+            [
+                fields.get("transaction_date", ""),
+                fields.get("merchant_name", ""),
+                fields.get("total_amount", ""),
+                fields.get("tax_amount", ""),
+                fields.get("payment_method", ""),
+                fields.get("category", ""),
+                fields.get("items_summary", ""),
+            ]
+        )
+    else:  # invoice
+        writer.writerow(
+            ["invoice_date", "due_date", "vendor", "invoice_number", "subtotal", "tax", "total"]
+        )
+        writer.writerow(
+            [
+                fields.get("invoice_date", ""),
+                fields.get("due_date", ""),
+                fields.get("vendor_name", ""),
+                fields.get("invoice_number", ""),
+                fields.get("subtotal", ""),
+                fields.get("tax_amount", ""),
+                fields.get("total_due", ""),
+            ]
+        )
+    return buf.getvalue()
+
+
+@app.get("/extractions/{doc_id}/export.vcf", tags=["export"])
+def export_vcard(doc_id: str, db: Session = Depends(get_db)) -> Response:
+    """Export a business_card extraction as a vCard (.vcf) file."""
+    doc = db.get(Document, doc_id)
+    if doc is None:
+        raise HTTPException(status_code=404, detail="Extraction not found")
+    if doc.doc_type != "business_card":
+        raise HTTPException(
+            status_code=422, detail="vCard export requires a business_card document"
+        )
+    fields = _fields_dict(doc)
+    slug = (fields.get("full_name") or "contact").replace(" ", "_")
+    return Response(
+        content=_make_vcard(fields),
+        media_type="text/vcard",
+        headers={"Content-Disposition": f'attachment; filename="{slug}.vcf"'},
+    )
+
+
+@app.get("/extractions/{doc_id}/export.ics", tags=["export"])
+def export_ical(doc_id: str, db: Session = Depends(get_db)) -> Response:
+    """Export an event_flyer extraction as an iCalendar (.ics) file."""
+    doc = db.get(Document, doc_id)
+    if doc is None:
+        raise HTTPException(status_code=404, detail="Extraction not found")
+    if doc.doc_type != "event_flyer":
+        raise HTTPException(status_code=422, detail="iCal export requires an event_flyer document")
+    fields = _fields_dict(doc)
+    slug = (fields.get("event_name") or "event").replace(" ", "_")
+    return Response(
+        content=_make_ical(fields, doc_id),
+        media_type="text/calendar",
+        headers={"Content-Disposition": f'attachment; filename="{slug}.ics"'},
+    )
+
+
+@app.get("/extractions/{doc_id}/export-expense.csv", tags=["export"])
+def export_expense(doc_id: str, db: Session = Depends(get_db)) -> Response:
+    """Export a receipt or invoice extraction as an expense CSV file."""
+    doc = db.get(Document, doc_id)
+    if doc is None:
+        raise HTTPException(status_code=404, detail="Extraction not found")
+    if doc.doc_type not in ("receipt", "invoice"):
+        raise HTTPException(
+            status_code=422, detail="Expense CSV export requires a receipt or invoice document"
+        )
+    fields = _fields_dict(doc)
+    merchant = fields.get("merchant_name") or fields.get("vendor_name") or "expense"
+    slug = merchant.replace(" ", "_")
+    return Response(
+        content=_make_expense_csv(doc.doc_type, fields),
+        media_type="text/csv",
+        headers={"Content-Disposition": f'attachment; filename="{slug}-expense.csv"'},
     )

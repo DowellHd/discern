@@ -3,19 +3,19 @@ import { useState, useCallback, useEffect, useRef } from "react";
 import { UploadZone } from "@/components/UploadZone";
 import { ExtractionResult } from "@/components/ExtractionResult";
 import { BatchResultList } from "@/components/BatchResultList";
-import { SearchPanel } from "@/components/SearchPanel";
+import { LibraryPanel } from "@/components/LibraryPanel";
 import { StatsPanel } from "@/components/StatsPanel";
 import { extractDocument, extractBatch, getTemplates } from "@/lib/api";
 import type { BatchOut, Extraction, Template } from "@/lib/types";
 
 const WARM_UP_DELAY_MS = 10_000;
 
-type Tab = "upload" | "search" | "stats";
+type Tab = "upload" | "library" | "stats";
 
 const TABS: { id: Tab; label: string }[] = [
-  { id: "upload", label: "Extract" },
-  { id: "search", label: "Search" },
-  { id: "stats",  label: "Stats" },
+  { id: "upload",  label: "Extract" },
+  { id: "library", label: "Library" },
+  { id: "stats",   label: "Stats" },
 ];
 
 const CATEGORY_LABELS: Record<string, string> = {
@@ -34,6 +34,7 @@ export default function Home() {
   const [docType, setDocType] = useState("");
   const [templates, setTemplates] = useState<Template[]>([]);
   const [batchMode, setBatchMode] = useState(false);
+  const [librarySelection, setLibrarySelection] = useState<Extraction | null>(null);
   const warmTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
@@ -89,6 +90,11 @@ export default function Home() {
   }
 
   const rightPanel = (() => {
+    if (tab === "library") {
+      return librarySelection
+        ? <ExtractionResult extraction={librarySelection} onUpdate={setLibrarySelection} />
+        : <EmptyResultState />;
+    }
     if (batchResult) {
       return (
         <BatchResultList
@@ -102,6 +108,7 @@ export default function Home() {
     }
     return <EmptyResultState />;
   })();
+
 
   return (
     <div className="min-h-screen flex flex-col">
@@ -298,17 +305,14 @@ export default function Home() {
             ) : (
               <>
                 <div className="px-1">
-                  <h1 className="text-lg font-bold tracking-tight" style={{ color: "#0f172a" }}>Search Records</h1>
+                  <h1 className="text-lg font-bold tracking-tight" style={{ color: "#0f172a" }}>Library</h1>
                   <p className="text-sm mt-0.5 leading-relaxed" style={{ color: "#64748b" }}>
-                    Search across all extracted documents.
+                    Browse, search, and review all extracted documents.
                   </p>
                 </div>
-                <SearchPanel
-                  onSelect={(e) => {
-                    setExtraction(e);
-                    setBatchResult(null);
-                    setTab("upload");
-                  }}
+                <LibraryPanel
+                  templates={templates}
+                  onSelect={setLibrarySelection}
                 />
               </>
             )}

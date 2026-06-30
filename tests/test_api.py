@@ -122,3 +122,48 @@ def test_search_pagination(client) -> None:
     resp = client.get("/search", params={"limit": 1, "offset": 0})
     assert resp.status_code == 200
     assert len(resp.json()["results"]) <= 1
+
+
+# ---------------------------------------------------------------------------
+# Type-aware exports
+# ---------------------------------------------------------------------------
+
+
+def test_export_vcard_wrong_type(client) -> None:
+    png = make_png_bytes()
+    resp = client.post("/extract", files={"file": ("card.png", png, "image/png")})
+    doc_id = resp.json()["id"]
+    # The mock returns connection_card, not business_card
+    r = client.get(f"/extractions/{doc_id}/export.vcf")
+    assert r.status_code == 422
+
+
+def test_export_ical_wrong_type(client) -> None:
+    png = make_png_bytes()
+    resp = client.post("/extract", files={"file": ("card.png", png, "image/png")})
+    doc_id = resp.json()["id"]
+    r = client.get(f"/extractions/{doc_id}/export.ics")
+    assert r.status_code == 422
+
+
+def test_export_expense_wrong_type(client) -> None:
+    png = make_png_bytes()
+    resp = client.post("/extract", files={"file": ("card.png", png, "image/png")})
+    doc_id = resp.json()["id"]
+    r = client.get(f"/extractions/{doc_id}/export-expense.csv")
+    assert r.status_code == 422
+
+
+def test_export_vcard_404(client) -> None:
+    r = client.get("/extractions/does-not-exist/export.vcf")
+    assert r.status_code == 404
+
+
+def test_export_ical_404(client) -> None:
+    r = client.get("/extractions/does-not-exist/export.ics")
+    assert r.status_code == 404
+
+
+def test_export_expense_404(client) -> None:
+    r = client.get("/extractions/does-not-exist/export-expense.csv")
+    assert r.status_code == 404

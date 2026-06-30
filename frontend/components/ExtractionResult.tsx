@@ -2,7 +2,7 @@
 import { useState } from "react";
 import type { Extraction, Field, FollowUpStatus } from "@/lib/types";
 import { FieldRow } from "./FieldRow";
-import { overlayUrl, patchField, patchStatus, exportCsvUrl } from "@/lib/api";
+import { overlayUrl, patchField, patchStatus, exportCsvUrl, exportVcardUrl, exportIcalUrl, exportExpenseUrl } from "@/lib/api";
 import { Badge } from "@/components/ui/Badge";
 import type { BadgeVariant } from "@/components/ui/Badge";
 
@@ -80,6 +80,16 @@ export function ExtractionResult({ extraction, onUpdate }: Props) {
     setTimeout(() => setCopied(false), 2200);
   }
 
+  const typeExport = (() => {
+    switch (extraction.doc_type) {
+      case "business_card": return { label: "Export vCard", url: exportVcardUrl(extraction.id), filename: "contact.vcf" };
+      case "event_flyer":   return { label: "Export iCal",  url: exportIcalUrl(extraction.id),  filename: "event.ics"   };
+      case "receipt":
+      case "invoice":       return { label: "Export Expense CSV", url: exportExpenseUrl(extraction.id), filename: "expense.csv" };
+      default: return null;
+    }
+  })();
+
   const docLabel = extraction.doc_type
     .replace(/_/g, " ")
     .replace(/\b\w/g, (c) => c.toUpperCase());
@@ -129,6 +139,21 @@ export function ExtractionResult({ extraction, onUpdate }: Props) {
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M19 9l-7 7-7-7" />
               </svg>
             </div>
+
+            {/* Type-aware export */}
+            {typeExport && (
+              <a
+                href={typeExport.url}
+                download={typeExport.filename}
+                aria-label={typeExport.label}
+                className="flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5 rounded-lg border bg-indigo-50 hover:bg-indigo-100 text-indigo-700 border-indigo-200 hover:border-indigo-300 transition-colors"
+              >
+                <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.75} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                </svg>
+                {typeExport.label}
+              </a>
+            )}
 
             {/* Export CSV */}
             <a

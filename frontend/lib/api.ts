@@ -87,3 +87,28 @@ export function exportCsvUrl(doc_type?: string): string {
 export function overlayUrl(id: string): string {
   return `${BASE}/extractions/${id}/overlay`;
 }
+
+export function exportVcardUrl(id: string): string {
+  return `${BASE}/extractions/${id}/export.vcf`;
+}
+
+export function exportIcalUrl(id: string): string {
+  return `${BASE}/extractions/${id}/export.ics`;
+}
+
+export function exportExpenseUrl(id: string): string {
+  return `${BASE}/extractions/${id}/export-expense.csv`;
+}
+
+export async function getReviewQueue(
+  threshold = 0.7,
+  limit = 20,
+  offset = 0
+): Promise<SearchResponse> {
+  const params = new URLSearchParams({
+    threshold: String(threshold),
+    limit: String(limit),
+    offset: String(offset),
+  });
+  return _json(await fetch(`${BASE}/review?${params}`));
+}
