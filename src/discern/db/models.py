@@ -24,6 +24,7 @@ class Document(Base):
     image_path: Mapped[str] = mapped_column(String(512), nullable=False)
     overlay_path: Mapped[str] = mapped_column(String(512), nullable=False)
     follow_up_status: Mapped[str | None] = mapped_column(String(32), nullable=True)
+    llm_refined: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
     created_at: Mapped[datetime] = mapped_column(
         DateTime, default=lambda: datetime.now(UTC).replace(tzinfo=None)
     )

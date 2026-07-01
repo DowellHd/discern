@@ -48,6 +48,7 @@ export interface Extraction {
   overlay_url: string;
   created_at: string;
   follow_up_status: FollowUpStatus;
+  llm_refined: boolean;
 }
 
 export interface SearchResponse {

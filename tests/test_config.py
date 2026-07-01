@@ -34,3 +34,11 @@ def test_bulletin_blocks_present() -> None:
     blocks = schema["region_types"]["bulletin"]["blocks"]
     assert "header" in blocks
     assert "service_date" in blocks
+
+
+def test_llm_postprocess_default_off() -> None:
+    assert settings.llm_postprocess is False
+
+
+def test_llm_postprocess_budget_default() -> None:
+    assert settings.llm_postprocess_budget_cents == 1.0

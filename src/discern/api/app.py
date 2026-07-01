@@ -84,6 +84,7 @@ def _doc_to_out(doc: Document, request_base: str = "") -> ExtractionOut:
         overlay_url=f"{request_base}/extractions/{doc.id}/overlay",
         created_at=doc.created_at,
         follow_up_status=doc.follow_up_status,
+        llm_refined=doc.llm_refined,
     )
 
 
@@ -121,6 +122,7 @@ def _process_upload(
         template_category=engine.schema.category_for(result.doc_type),
         image_path=str(orig_path),
         overlay_path=str(overlay_path),
+        llm_refined=result.llm_refined,
     )
     for fr in result.fields:
         doc.fields.append(

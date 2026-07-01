@@ -38,6 +38,13 @@ def test_extract_response_schema(client) -> None:
     assert "fields" in body
     assert "overlay_url" in body
     assert "created_at" in body
+    assert "llm_refined" in body
+
+
+def test_extract_llm_refined_false_by_default(client) -> None:
+    png = make_png_bytes()
+    resp = client.post("/extract", files={"file": ("card.png", png, "image/png")})
+    assert resp.json()["llm_refined"] is False
 
 
 def test_extract_fields_list(client) -> None:

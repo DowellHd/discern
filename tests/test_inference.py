@@ -38,6 +38,11 @@ def test_predict_returns_inference_result(engine, sample_image, schema) -> None:
     assert 0.0 <= result.doc_type_confidence <= 1.0
 
 
+def test_predict_llm_refined_default_false(engine, sample_image) -> None:
+    result = engine.predict(sample_image)
+    assert result.llm_refined is False
+
+
 def test_predict_fields_match_schema(engine, sample_image, schema) -> None:
     result = engine.predict(sample_image)
     spec = schema.document_types[result.doc_type]

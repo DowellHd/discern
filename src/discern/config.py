@@ -30,6 +30,10 @@ class Settings(BaseSettings):
     cors_origins: list[str] = Field(
         default=["https://discern.dowellstandley.com", "http://localhost:3000"],
     )
+    # Phase 4: LLM post-processor (feature-flagged, off by default)
+    llm_postprocess: bool = False
+    # Per-request cost ceiling in US cents; calls that would exceed this are skipped
+    llm_postprocess_budget_cents: float = 1.0
 
     model_config = {"env_prefix": "DISCERN_", "env_file": ".env", "extra": "ignore"}
 

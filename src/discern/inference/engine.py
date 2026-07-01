@@ -12,8 +12,10 @@ import torch.nn.functional as F
 import torchvision.transforms as T
 from PIL import Image
 
+from discern.config import settings
 from discern.data.preprocess import preprocess, preprocess_for_ocr
 from discern.data.schema import DocumentSchema
+from discern.inference import llm_postprocess
 from discern.inference.ocr import extract_handwritten_fields
 from discern.models.extractor import (
     CATEGORY_OPTIONS,
@@ -48,6 +50,7 @@ class InferenceResult:
     doc_type: str
     doc_type_confidence: float
     fields: list[FieldResult]
+    llm_refined: bool = False
 
 
 class InferenceEngine:
@@ -104,7 +107,17 @@ class InferenceEngine:
             else {}
         )
 
-        return self._decode(logits, ocr, doc_type_name=dt_name)
+        result = self._decode(logits, ocr, doc_type_name=dt_name)
+
+        if settings.llm_postprocess:
+            non_sensitive = {f.name: f.value for f in result.fields if not f.sensitive}
+            corrections = llm_postprocess.refine(
+                result.doc_type, non_sensitive, settings.llm_postprocess_budget_cents
+            )
+            if corrections:
+                result = self._apply_corrections(result, corrections)
+
+        return result
 
     @staticmethod
     def validate_upload(data: bytes, content_type: str) -> None:
@@ -158,6 +171,29 @@ class InferenceEngine:
             )
         return InferenceResult(
             doc_type=dt_name, doc_type_confidence=round(dt_conf, 4), fields=fields
+        )
+
+    @staticmethod
+    def _apply_corrections(result: InferenceResult, corrections: dict[str, str]) -> InferenceResult:
+        refined: list[FieldResult] = []
+        for f in result.fields:
+            if f.name in corrections:
+                refined.append(
+                    FieldResult(
+                        name=f.name,
+                        value=corrections[f.name],
+                        confidence=max(f.confidence, 0.85),
+                        capture=f.capture,
+                        sensitive=f.sensitive,
+                    )
+                )
+            else:
+                refined.append(f)
+        return InferenceResult(
+            doc_type=result.doc_type,
+            doc_type_confidence=result.doc_type_confidence,
+            fields=refined,
+            llm_refined=True,
         )
 
     @staticmethod

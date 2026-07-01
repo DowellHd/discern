@@ -28,6 +28,7 @@ class ExtractionOut(BaseModel):
     overlay_url: str
     created_at: datetime
     follow_up_status: FollowUpStatus = None
+    llm_refined: bool = False
 
     model_config = {"from_attributes": True}
 

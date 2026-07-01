@@ -112,6 +112,9 @@ export function ExtractionResult({ extraction, onUpdate }: Props) {
             <div className="flex items-center gap-2 flex-wrap">
               <h2 className="text-lg font-bold text-slate-900 tracking-tight">{docLabel}</h2>
               <Badge variant={confVariant(confPct)}>{confPct}% confidence</Badge>
+              {extraction.llm_refined && (
+                <Badge variant="neutral">AI refined</Badge>
+              )}
               {status && (
                 <Badge variant={statusVariant(status)}>{currentStatus.label}</Badge>
               )}
