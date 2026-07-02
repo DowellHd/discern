@@ -61,8 +61,26 @@ export function InstallBanner() {
           <p className="font-semibold text-sm">Add Discern to your home screen</p>
           {mode === "ios" ? (
             <p className="text-slate-400 text-xs mt-0.5">
-              Tap the <strong className="text-slate-300">Share</strong> button then{" "}
-              <strong className="text-slate-300">Add to Home Screen</strong>
+              Tap{" "}
+              <strong className="text-slate-300 inline-flex items-center gap-0.5">
+                <svg
+                  width="13"
+                  height="13"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2.2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  className="inline -mt-0.5"
+                  aria-hidden="true"
+                >
+                  <path d="M12 14V4M8 8l4-4 4 4" />
+                  <path d="M4 14v6h16v-6" />
+                </svg>{" "}
+                Share
+              </strong>{" "}
+              then <strong className="text-slate-300">Add to Home Screen</strong>
             </p>
           ) : (
             <p className="text-slate-400 text-xs mt-0.5">
