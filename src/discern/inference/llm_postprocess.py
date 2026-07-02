@@ -25,7 +25,7 @@ _HAIKU_OUTPUT_CPM = 4.00
 # Conservative upper bound on output size for cost estimation
 _ESTIMATED_OUTPUT_CHARS = 200
 
-_GEMINI_MODEL = os.environ.get("GEMINI_MODEL", "gemini-2.0-flash")
+_GEMINI_MODEL = os.environ.get("GEMINI_MODEL", "gemini-1.5-flash")
 _GEMINI_TIMEOUT = 30
 
 

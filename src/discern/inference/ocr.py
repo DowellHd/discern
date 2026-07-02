@@ -42,7 +42,7 @@ _OLLAMA_URL = os.environ.get("OLLAMA_URL", "http://localhost:11434")
 _OLLAMA_MODEL = os.environ.get("OLLAMA_MODEL", "llava:7b")
 _OLLAMA_TIMEOUT = int(os.environ.get("OLLAMA_TIMEOUT", "10"))
 
-_GEMINI_MODEL = os.environ.get("GEMINI_MODEL", "gemini-2.0-flash")
+_GEMINI_MODEL = os.environ.get("GEMINI_MODEL", "gemini-1.5-flash")
 _GEMINI_TIMEOUT = 30
 
 # Resize before sending to any VLM — keeps latency down without hurting OCR accuracy.
