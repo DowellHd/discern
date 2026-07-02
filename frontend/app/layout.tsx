@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Inter } from "next/font/google";
 import "./globals.css";
 import { ServiceWorkerRegistration } from "./sw-register";
+import { InstallBanner } from "./install-banner";
 
 const inter = Inter({
   subsets: ["latin"],
@@ -45,6 +46,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
     <html lang="en" className={`h-full ${inter.variable}`}>
       <body className="min-h-full flex flex-col font-sans bg-slate-50 text-slate-800 antialiased">
         <ServiceWorkerRegistration />
+        <InstallBanner />
         {children}
       </body>
     </html>
