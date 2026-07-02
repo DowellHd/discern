@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Inter } from "next/font/google";
 import "./globals.css";
+import { ServiceWorkerRegistration } from "./sw-register";
 
 const inter = Inter({
   subsets: ["latin"],
@@ -31,12 +32,19 @@ export const metadata: Metadata = {
     description: "Extract structured data from paper church records using computer vision.",
     images: ["/og.png"],
   },
+  themeColor: "#4f46e5",
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: "black-translucent",
+    title: "Discern",
+  },
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="en" className={`h-full ${inter.variable}`}>
       <body className="min-h-full flex flex-col font-sans bg-slate-50 text-slate-800 antialiased">
+        <ServiceWorkerRegistration />
         {children}
       </body>
     </html>
