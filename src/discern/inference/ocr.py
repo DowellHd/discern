@@ -276,9 +276,8 @@ def _try_gemini(
         log.warning("gemini_skipped", reason="GOOGLE_API_KEY / GEMINI_API_KEY not set")
         return None
 
-    # Keys containing dots (e.g. "AQ.xxx") are OAuth credentials — use Bearer auth.
-    # Standard API keys (AIzaSy...) go in the URL query string.
-    is_oauth = "." in api_key
+    # Google OAuth access tokens start with "ya29."; everything else is an API key.
+    is_oauth = api_key.startswith("ya29.")
     log.info(
         "gemini_attempt",
         model=_GEMINI_MODEL,
