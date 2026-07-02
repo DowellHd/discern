@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Inter } from "next/font/google";
 import "./globals.css";
 import { ServiceWorkerRegistration } from "./sw-register";
@@ -33,12 +33,15 @@ export const metadata: Metadata = {
     description: "Extract structured data from paper church records using computer vision.",
     images: ["/og.png"],
   },
-  themeColor: "#4f46e5",
   appleWebApp: {
     capable: true,
     statusBarStyle: "black-translucent",
     title: "Discern",
   },
+};
+
+export const viewport: Viewport = {
+  themeColor: "#4f46e5",
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
