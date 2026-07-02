@@ -5,8 +5,11 @@ import { ExtractionResult } from "@/components/ExtractionResult";
 import { BatchResultList } from "@/components/BatchResultList";
 import { LibraryPanel } from "@/components/LibraryPanel";
 import { StatsPanel } from "@/components/StatsPanel";
-import { extractDocument, extractBatch, getTemplates } from "@/lib/api";
+import { AuthModal } from "@/components/AuthModal";
+import { extractDocument, extractBatch, getTemplates, getToken, clearToken } from "@/lib/api";
 import type { BatchOut, Extraction, Template } from "@/lib/types";
+
+const DEMO_MODE = process.env.NEXT_PUBLIC_DEMO_MODE === "true";
 
 const WARM_UP_DELAY_MS = 10_000;
 
@@ -35,7 +38,14 @@ export default function Home() {
   const [templates, setTemplates] = useState<Template[]>([]);
   const [batchMode, setBatchMode] = useState(false);
   const [librarySelection, setLibrarySelection] = useState<Extraction | null>(null);
+  const [userEmail, setUserEmail] = useState<string | null>(null);
+  const [showAuth, setShowAuth] = useState(false);
   const warmTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // Auth gate: show modal when not in demo mode and no token stored
+  useEffect(() => {
+    if (!DEMO_MODE && !getToken()) setShowAuth(true);
+  }, []);
 
   useEffect(() => {
     getTemplates()
@@ -161,7 +171,35 @@ export default function Home() {
             </button>
           ))}
         </nav>
+
+        {/* Auth controls (hidden in demo mode) */}
+        {!DEMO_MODE && (
+          <div className="ml-3 flex items-center gap-2 flex-shrink-0">
+            {userEmail ? (
+              <>
+                <span className="text-xs text-slate-400 hidden sm:block">{userEmail}</span>
+                <button
+                  onClick={() => { clearToken(); setUserEmail(null); setShowAuth(true); }}
+                  className="text-xs text-slate-400 hover:text-slate-200 transition-colors"
+                >
+                  Sign out
+                </button>
+              </>
+            ) : (
+              <button
+                onClick={() => setShowAuth(true)}
+                className="text-xs font-medium text-indigo-400 hover:text-indigo-300 transition-colors"
+              >
+                Sign in
+              </button>
+            )}
+          </div>
+        )}
       </header>
+
+      {showAuth && !DEMO_MODE && (
+        <AuthModal onAuth={(email) => { setUserEmail(email); setShowAuth(false); }} />
+      )}
 
       {/* ── Body ──────────────────────────────────────────── */}
       {tab === "stats" ? (

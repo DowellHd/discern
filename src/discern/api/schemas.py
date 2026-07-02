@@ -5,7 +5,7 @@ from __future__ import annotations
 from datetime import datetime
 from typing import Literal
 
-from pydantic import BaseModel
+from pydantic import BaseModel, EmailStr
 
 FollowUpStatus = Literal["pending", "contacted", "done"] | None
 
@@ -91,3 +91,48 @@ class TemplateOut(BaseModel):
 
 class TemplatesOut(BaseModel):
     templates: list[TemplateOut]
+
+
+# ---------------------------------------------------------------------------
+# Auth
+# ---------------------------------------------------------------------------
+
+
+class UserCreate(BaseModel):
+    email: EmailStr
+    password: str
+
+
+class UserLogin(BaseModel):
+    email: EmailStr
+    password: str
+
+
+class TokenOut(BaseModel):
+    access_token: str
+    token_type: str = "bearer"
+
+
+class UserOut(BaseModel):
+    id: str
+    email: str
+    created_at: datetime
+
+    model_config = {"from_attributes": True}
+
+
+# ---------------------------------------------------------------------------
+# Phase 6: Training candidates
+# ---------------------------------------------------------------------------
+
+
+class TrainingCandidate(BaseModel):
+    document_id: str
+    doc_type: str
+    field_name: str
+    corrected_value: str | None
+
+
+class TrainingCandidatesOut(BaseModel):
+    total: int
+    candidates: list[TrainingCandidate]

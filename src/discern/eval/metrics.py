@@ -80,6 +80,7 @@ class CaptureMetrics:
 class EvalResult:
     n_samples: int
     by_capture: dict[str, CaptureMetrics]
+    by_doc_type: dict[str, CaptureMetrics]
     overall: CaptureMetrics
 
     def to_dict(self) -> dict[str, Any]:
@@ -87,6 +88,7 @@ class EvalResult:
             "n_samples": self.n_samples,
             "overall": self.overall.to_dict(),
             "by_capture": {k: v.to_dict() for k, v in self.by_capture.items()},
+            "by_doc_type": {k: v.to_dict() for k, v in self.by_doc_type.items()},
         }
 
 
@@ -166,12 +168,17 @@ def evaluate_checkpoint(
     doc_types = list(schema.document_types.keys())
 
     by_capture: dict[str, CaptureMetrics] = {}
+    by_doc_type: dict[str, CaptureMetrics] = {}
     overall = CaptureMetrics(capture="overall")
 
     for _ in range(n_samples):
         for doc_type in doc_types:
             sample = gen.generate(doc_type)
             spec = schema.document_types[doc_type]
+
+            if doc_type not in by_doc_type:
+                by_doc_type[doc_type] = CaptureMetrics(capture=doc_type)
+            dt_cm = by_doc_type[doc_type]
 
             t0 = time.perf_counter()
             result = engine.predict(sample.image)
@@ -195,34 +202,28 @@ def evaluate_checkpoint(
                 pred_str = pred_val if pred_val is not None else ""
                 correct = _predicted_matches_label(pred_str, label_str, field_spec.value_type)
 
-                cm.total += 1
-                overall.total += 1
-                cm.latencies_ms.append(latency_ms)
-                overall.latencies_ms.append(latency_ms)
-
-                if correct:
-                    cm.tp += 1
-                    overall.tp += 1
-                else:
-                    if pred_str:
-                        cm.fp += 1
-                        overall.fp += 1
-                    if label_str:
-                        cm.fn += 1
-                        overall.fn += 1
+                for bucket in (cm, dt_cm, overall):
+                    bucket.total += 1
+                    bucket.latencies_ms.append(latency_ms)
+                    if correct:
+                        bucket.tp += 1
+                    else:
+                        if pred_str:
+                            bucket.fp += 1
+                        if label_str:
+                            bucket.fn += 1
 
                 if field_spec.capture == "handwritten" and label_str:
                     cer = _char_error_rate(pred_str, label_str)
                     wer = _word_error_rate(pred_str, label_str)
-                    cm.cer_sum += cer
-                    cm.wer_sum += wer
-                    cm.ocr_count += 1
-                    overall.cer_sum += cer
-                    overall.wer_sum += wer
-                    overall.ocr_count += 1
+                    for bucket in (cm, dt_cm, overall):
+                        bucket.cer_sum += cer
+                        bucket.wer_sum += wer
+                        bucket.ocr_count += 1
 
     return EvalResult(
         n_samples=n_samples * len(doc_types),
         by_capture=by_capture,
+        by_doc_type=by_doc_type,
         overall=overall,
     )

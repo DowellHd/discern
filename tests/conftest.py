@@ -19,6 +19,8 @@ from discern.data.schema import parse_document_schema
 from discern.db.models import Base
 from discern.inference.engine import FieldResult, InferenceResult
 
+_TEST_JWT_SECRET = "test-jwt-secret-32-chars-padded!!"
+
 # ---------------------------------------------------------------------------
 # In-memory SQLite DB
 # ---------------------------------------------------------------------------
@@ -85,6 +87,8 @@ def mock_engine():
 @pytest.fixture
 def client(db_session, mock_engine, tmp_path, monkeypatch):
     monkeypatch.setattr(settings, "data_dir", tmp_path)
+    monkeypatch.setattr(settings, "demo_mode", True)
+    monkeypatch.setattr(settings, "jwt_secret", _TEST_JWT_SECRET)
 
     def override_db():
         yield db_session

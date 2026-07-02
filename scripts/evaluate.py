@@ -42,6 +42,23 @@ def _run_full_eval(schema, ckpt_path: Path) -> dict:
     return result.to_dict()
 
 
+def _md_row(d: dict) -> str:
+    return (
+        f"| {d['capture']} "
+        f"| {d['precision']:.3f} "
+        f"| {d['recall']:.3f} "
+        f"| {d['f1']:.3f} "
+        f"| {d['cer']:.3f} "
+        f"| {d['wer']:.3f} "
+        f"| {d['p50_latency_ms']:.1f} "
+        f"| {d['p95_latency_ms']:.1f} |"
+    )
+
+
+_MD_HEADER = "| Doc Type / Capture | Precision | Recall | F1 | CER | WER | p50 (ms) | p95 (ms) |"
+_MD_SEP = "|---------------------|-----------|--------|----|-----|-----|----------|----------|"
+
+
 def _write_report(data: dict, reports_dir: Path) -> None:
     reports_dir.mkdir(parents=True, exist_ok=True)
 
@@ -49,29 +66,28 @@ def _write_report(data: dict, reports_dir: Path) -> None:
     json_path.write_text(json.dumps(data, indent=2))
     print(f"JSON report: {json_path}")
 
-    md_path = reports_dir / "eval.md"
+    ov = data["overall"]
     lines = [
         "# Discern — Eval Report",
         "",
         f"**Samples evaluated:** {data['n_samples']}",
         "",
+        "## Results by Doc Type",
+        "",
+        _MD_HEADER,
+        _MD_SEP,
+    ]
+    for dt_data in data.get("by_doc_type", {}).values():
+        lines.append(_md_row(dt_data))
+    lines += [
+        "",
         "## Results by Capture Type",
         "",
-        "| Capture | Precision | Recall | F1 | CER | WER | p50 (ms) | p95 (ms) |",
-        "|---------|-----------|--------|----|-----|-----|----------|----------|",
+        _MD_HEADER,
+        _MD_SEP,
     ]
     for cap_data in data["by_capture"].values():
-        lines.append(
-            f"| {cap_data['capture']} "
-            f"| {cap_data['precision']:.3f} "
-            f"| {cap_data['recall']:.3f} "
-            f"| {cap_data['f1']:.3f} "
-            f"| {cap_data['cer']:.3f} "
-            f"| {cap_data['wer']:.3f} "
-            f"| {cap_data['p50_latency_ms']:.1f} "
-            f"| {cap_data['p95_latency_ms']:.1f} |"
-        )
-    ov = data["overall"]
+        lines.append(_md_row(cap_data))
     lines += [
         f"| **overall** "
         f"| **{ov['precision']:.3f}** "
@@ -85,39 +101,39 @@ def _write_report(data: dict, reports_dir: Path) -> None:
         "> Handwritten field values are not extracted by the current model (OCR head not yet",
         "> trained); CER/WER = 1.0 for handwritten fields reflects this gap.",
     ]
+    md_path = reports_dir / "eval.md"
     md_path.write_text("\n".join(lines) + "\n")
     print(f"Markdown report: {md_path}")
 
 
+def _print_row(label: str, d: dict) -> None:
+    print(
+        f"{label:<22} "
+        f"{d['precision']:>6.3f} "
+        f"{d['recall']:>6.3f} "
+        f"{d['f1']:>6.3f} "
+        f"{d['cer']:>6.3f} "
+        f"{d['wer']:>6.3f} "
+        f"{d['p50_latency_ms']:>7.1f} "
+        f"{d['p95_latency_ms']:>7.1f}"
+    )
+
+
 def _print_table(data: dict) -> None:
-    print("\n=== Discern Eval Results ===")
-    print(
-        f"{'Capture':<12} {'P':>6} {'R':>6} {'F1':>6} {'CER':>6} {'WER':>6} {'p50ms':>7} {'p95ms':>7}"
-    )
-    print("-" * 62)
+    hdr = f"{'Type / Capture':<22} {'P':>6} {'R':>6} {'F1':>6} {'CER':>6} {'WER':>6} {'p50ms':>7} {'p95ms':>7}"
+    sep = "-" * 76
+    print("\n=== Discern Eval — By Doc Type ===")
+    print(hdr)
+    print(sep)
+    for dt, dt_data in data.get("by_doc_type", {}).items():
+        _print_row(dt, dt_data)
+    print("\n=== Discern Eval — By Capture Type ===")
+    print(hdr)
+    print(sep)
     for cap_data in data["by_capture"].values():
-        print(
-            f"{cap_data['capture']:<12} "
-            f"{cap_data['precision']:>6.3f} "
-            f"{cap_data['recall']:>6.3f} "
-            f"{cap_data['f1']:>6.3f} "
-            f"{cap_data['cer']:>6.3f} "
-            f"{cap_data['wer']:>6.3f} "
-            f"{cap_data['p50_latency_ms']:>7.1f} "
-            f"{cap_data['p95_latency_ms']:>7.1f}"
-        )
-    ov = data["overall"]
-    print("-" * 62)
-    print(
-        f"{'overall':<12} "
-        f"{ov['precision']:>6.3f} "
-        f"{ov['recall']:>6.3f} "
-        f"{ov['f1']:>6.3f} "
-        f"{ov['cer']:>6.3f} "
-        f"{ov['wer']:>6.3f} "
-        f"{ov['p50_latency_ms']:>7.1f} "
-        f"{ov['p95_latency_ms']:>7.1f}"
-    )
+        _print_row(cap_data["capture"], cap_data)
+    print(sep)
+    _print_row("overall", data["overall"])
 
 
 def main() -> None:

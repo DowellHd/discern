@@ -15,6 +15,13 @@ from PIL import Image
 from sqlalchemy import func
 from sqlalchemy.orm import Session
 
+from discern.api.auth import (
+    create_token,
+    encrypt_field,
+    get_current_user,
+    hash_password,
+    verify_password,
+)
 from discern.api.deps import get_db, get_inference_engine
 from discern.api.schemas import (
     BatchOut,
@@ -29,9 +36,15 @@ from discern.api.schemas import (
     TemplateFieldOut,
     TemplateOut,
     TemplatesOut,
+    TokenOut,
+    TrainingCandidate,
+    TrainingCandidatesOut,
+    UserCreate,
+    UserLogin,
+    UserOut,
 )
 from discern.config import settings
-from discern.db.models import Document, ExtractionField
+from discern.db.models import Document, ExtractionField, User
 from discern.inference.engine import InferenceEngine, pdf_first_page
 from discern.inference.overlay import draw_overlay
 
@@ -95,6 +108,7 @@ def _process_upload(
     engine: InferenceEngine,
     db: Session,
     doc_type_override: str | None = None,
+    user: User | None = None,
 ) -> ExtractionOut:
     """Validate, extract, persist, and return one upload."""
     engine.validate_upload(raw, content_type)
@@ -114,8 +128,13 @@ def _process_upload(
     _save_image(image.convert("RGB"), orig_path)
     _save_image(draw_overlay(image.convert("RGB"), result), overlay_path)
 
+    # Look up which fields are sensitive for this doc type
+    spec = engine.schema.document_types.get(result.doc_type)
+    sensitive_names = {f.name for f in spec.fields if f.sensitive} if spec else set()
+
     doc = Document(
         id=doc_id,
+        user_id=user.id if user else None,
         original_filename=filename,
         doc_type=result.doc_type,
         doc_type_confidence=result.doc_type_confidence,
@@ -125,11 +144,18 @@ def _process_upload(
         llm_refined=result.llm_refined,
     )
     for fr in result.fields:
+        raw_value = fr.value
+        # Encrypt sensitive fields before persisting (value may be "[REDACTED]" from engine)
+        stored_value = (
+            encrypt_field(raw_value)
+            if (fr.name in sensitive_names and raw_value and raw_value != "[REDACTED]")
+            else raw_value
+        )
         doc.fields.append(
             ExtractionField(
                 document_id=doc_id,
                 field_name=fr.name,
-                field_value=fr.value,
+                field_value=stored_value,
                 confidence=fr.confidence,
                 capture_type=fr.capture,
             )
@@ -226,6 +252,7 @@ def extract(
     doc_type: str | None = Form(None),
     db: Session = Depends(get_db),
     engine: InferenceEngine = Depends(get_inference_engine),
+    current_user: User = Depends(get_current_user),
 ) -> ExtractionOut:
     raw = file.file.read()
     content_type = file.content_type or "application/octet-stream"
@@ -237,6 +264,7 @@ def extract(
             engine,
             db,
             doc_type_override=doc_type,
+            user=current_user,
         )
     except ValueError as exc:
         raise HTTPException(status_code=422, detail=str(exc)) from exc
@@ -248,6 +276,7 @@ def extract_batch(
     doc_type: str | None = Form(None),
     db: Session = Depends(get_db),
     engine: InferenceEngine = Depends(get_inference_engine),
+    current_user: User = Depends(get_current_user),
 ) -> BatchOut:
     results: list[ExtractionOut] = []
     errors: list[str] = []
@@ -263,6 +292,7 @@ def extract_batch(
                     engine,
                     db,
                     doc_type_override=doc_type,
+                    user=current_user,
                 )
             )
         except Exception as exc:
@@ -575,3 +605,69 @@ def export_expense(doc_id: str, db: Session = Depends(get_db)) -> Response:
         media_type="text/csv",
         headers={"Content-Disposition": f'attachment; filename="{slug}-expense.csv"'},
     )
+
+
+# ---------------------------------------------------------------------------
+# Routes — auth (Phase 5)
+# ---------------------------------------------------------------------------
+
+
+@app.post("/auth/register", response_model=TokenOut, tags=["auth"])
+def register(body: UserCreate, db: Session = Depends(get_db)) -> TokenOut:
+    """Create a new account and return a JWT."""
+    existing = db.query(User).filter(User.email == body.email).first()
+    if existing:
+        raise HTTPException(status_code=409, detail="Email already registered")
+    user = User(email=body.email, hashed_password=hash_password(body.password))
+    db.add(user)
+    db.commit()
+    db.refresh(user)
+    return TokenOut(access_token=create_token(user.id))
+
+
+@app.post("/auth/login", response_model=TokenOut, tags=["auth"])
+def login(body: UserLogin, db: Session = Depends(get_db)) -> TokenOut:
+    """Verify credentials and return a JWT."""
+    user = db.query(User).filter(User.email == body.email).first()
+    if user is None or not verify_password(body.password, user.hashed_password):
+        raise HTTPException(status_code=401, detail="Invalid email or password")
+    return TokenOut(access_token=create_token(user.id))
+
+
+@app.get("/auth/me", response_model=UserOut, tags=["auth"])
+def me(current_user: User = Depends(get_current_user)) -> UserOut:
+    """Return the authenticated user's profile."""
+    return UserOut.model_validate(current_user)
+
+
+# ---------------------------------------------------------------------------
+# Routes — training candidates (Phase 6)
+# ---------------------------------------------------------------------------
+
+
+@app.get("/training-candidates", response_model=TrainingCandidatesOut, tags=["mlops"])
+def training_candidates(
+    limit: int = Query(default=100, ge=1, le=500),
+    offset: int = Query(default=0, ge=0),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+) -> TrainingCandidatesOut:
+    """Return user-corrected field values ready for retraining."""
+    query = (
+        db.query(ExtractionField, Document.doc_type)
+        .join(Document, ExtractionField.document_id == Document.id)
+        .filter(ExtractionField.corrected == True)  # noqa: E712
+        .filter(Document.user_id == current_user.id)
+    )
+    total = query.count()
+    rows = query.offset(offset).limit(limit).all()
+    candidates = [
+        TrainingCandidate(
+            document_id=ef.document_id,
+            doc_type=dt,
+            field_name=ef.field_name,
+            corrected_value=ef.field_value,
+        )
+        for ef, dt in rows
+    ]
+    return TrainingCandidatesOut(total=total, candidates=candidates)

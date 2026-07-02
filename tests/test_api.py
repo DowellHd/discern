@@ -174,3 +174,75 @@ def test_export_ical_404(client) -> None:
 def test_export_expense_404(client) -> None:
     r = client.get("/extractions/does-not-exist/export-expense.csv")
     assert r.status_code == 404
+
+
+# ---------------------------------------------------------------------------
+# Auth endpoints (Phase 5)
+# ---------------------------------------------------------------------------
+
+
+def test_register_creates_account(client, monkeypatch) -> None:
+    from discern.config import settings
+    from tests.conftest import _TEST_JWT_SECRET
+
+    monkeypatch.setattr(settings, "demo_mode", False)
+    monkeypatch.setattr(settings, "jwt_secret", _TEST_JWT_SECRET)
+    resp = client.post("/auth/register", json={"email": "alice@test.com", "password": "password123"})
+    assert resp.status_code == 200
+    body = resp.json()
+    assert "access_token" in body
+    assert body["token_type"] == "bearer"
+
+
+def test_register_duplicate_returns_409(client, monkeypatch) -> None:
+    from discern.config import settings
+    from tests.conftest import _TEST_JWT_SECRET
+
+    monkeypatch.setattr(settings, "demo_mode", False)
+    monkeypatch.setattr(settings, "jwt_secret", _TEST_JWT_SECRET)
+    client.post("/auth/register", json={"email": "bob@test.com", "password": "password123"})
+    resp = client.post("/auth/register", json={"email": "bob@test.com", "password": "password123"})
+    assert resp.status_code == 409
+
+
+def test_login_returns_token(client, monkeypatch) -> None:
+    from discern.config import settings
+    from tests.conftest import _TEST_JWT_SECRET
+
+    monkeypatch.setattr(settings, "demo_mode", False)
+    monkeypatch.setattr(settings, "jwt_secret", _TEST_JWT_SECRET)
+    client.post("/auth/register", json={"email": "carol@test.com", "password": "securepass"})
+    resp = client.post("/auth/login", json={"email": "carol@test.com", "password": "securepass"})
+    assert resp.status_code == 200
+    assert "access_token" in resp.json()
+
+
+def test_login_wrong_password_returns_401(client, monkeypatch) -> None:
+    from discern.config import settings
+    from tests.conftest import _TEST_JWT_SECRET
+
+    monkeypatch.setattr(settings, "demo_mode", False)
+    monkeypatch.setattr(settings, "jwt_secret", _TEST_JWT_SECRET)
+    client.post("/auth/register", json={"email": "dave@test.com", "password": "rightpass"})
+    resp = client.post("/auth/login", json={"email": "dave@test.com", "password": "wrongpass"})
+    assert resp.status_code == 401
+
+
+def test_me_in_demo_mode(client) -> None:
+    resp = client.get("/auth/me")
+    assert resp.status_code == 200
+    assert resp.json()["email"] == "demo@discern.local"
+
+
+# ---------------------------------------------------------------------------
+# Training candidates (Phase 6)
+# ---------------------------------------------------------------------------
+
+
+def test_training_candidates_empty(client) -> None:
+    resp = client.get("/training-candidates")
+    assert resp.status_code == 200
+    body = resp.json()
+    assert "total" in body
+    assert "candidates" in body
+    assert body["total"] == 0

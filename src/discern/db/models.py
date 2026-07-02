@@ -13,10 +13,28 @@ class Base(DeclarativeBase):
     pass
 
 
+class User(Base):
+    __tablename__ = "users"
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    email: Mapped[str] = mapped_column(String(255), unique=True, nullable=False, index=True)
+    hashed_password: Mapped[str] = mapped_column(String(255), nullable=False)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime, default=lambda: datetime.now(UTC).replace(tzinfo=None)
+    )
+
+    documents: Mapped[list[Document]] = relationship(
+        "Document", back_populates="user", cascade="all, delete-orphan"
+    )
+
+
 class Document(Base):
     __tablename__ = "documents"
 
     id: Mapped[str] = mapped_column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    user_id: Mapped[str | None] = mapped_column(
+        String(36), ForeignKey("users.id", ondelete="CASCADE"), nullable=True, index=True
+    )
     original_filename: Mapped[str] = mapped_column(String(255), nullable=False)
     doc_type: Mapped[str] = mapped_column(String(64), nullable=False)
     doc_type_confidence: Mapped[float] = mapped_column(Float, nullable=False)
@@ -29,6 +47,7 @@ class Document(Base):
         DateTime, default=lambda: datetime.now(UTC).replace(tzinfo=None)
     )
 
+    user: Mapped[User | None] = relationship("User", back_populates="documents")
     fields: Mapped[list[ExtractionField]] = relationship(
         "ExtractionField", back_populates="document", cascade="all, delete-orphan"
     )

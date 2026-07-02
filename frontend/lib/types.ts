@@ -67,3 +67,14 @@ export interface Stats {
   avg_confidence: number;
   review_queue: number;
 }
+
+export interface TokenOut {
+  access_token: string;
+  token_type: string;
+}
+
+export interface UserOut {
+  id: string;
+  email: string;
+  created_at: string;
+}

@@ -34,6 +34,14 @@ class Settings(BaseSettings):
     llm_postprocess: bool = False
     # Per-request cost ceiling in US cents; calls that would exceed this are skipped
     llm_postprocess_budget_cents: float = 1.0
+    # Phase 5: Auth + privacy
+    # Demo mode: all requests use a shared demo user — no login required
+    demo_mode: bool = True
+    # Secret used to sign JWT tokens (generate with: openssl rand -hex 32)
+    jwt_secret: str = ""
+    # Fernet key for encrypting sensitive fields at rest
+    # Generate: python -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())"
+    field_encryption_key: str = ""
 
     model_config = {"env_prefix": "DISCERN_", "env_file": ".env", "extra": "ignore"}
 
