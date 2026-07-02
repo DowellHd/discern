@@ -281,7 +281,7 @@ def _try_gemini(
     log.info(
         "gemini_attempt",
         model=_GEMINI_MODEL,
-        key_prefix=api_key[:6],
+        key_prefix=api_key[:10],
         auth="bearer" if is_oauth else "apikey",
     )
 
