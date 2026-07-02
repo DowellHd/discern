@@ -273,7 +273,7 @@ def _try_gemini(
 ) -> dict[str, tuple[str | None, float]] | None:
     api_key = os.environ.get("GOOGLE_API_KEY") or os.environ.get("GEMINI_API_KEY")
     if not api_key:
-        log.warning("gemini_skipped", reason="GOOGLE_API_KEY / GEMINI_API_KEY not set")
+        log.debug("gemini_skipped", reason="GOOGLE_API_KEY / GEMINI_API_KEY not set")
         return None
 
     # Google OAuth access tokens start with "ya29."; everything else is an API key.
