@@ -6,6 +6,7 @@ import { BatchResultList } from "@/components/BatchResultList";
 import { LibraryPanel } from "@/components/LibraryPanel";
 import { StatsPanel } from "@/components/StatsPanel";
 import { AuthModal } from "@/components/AuthModal";
+import Image from "next/image";
 import { extractDocument, extractBatch, getTemplates, getToken, clearToken } from "@/lib/api";
 import type { BatchOut, Extraction, Template } from "@/lib/types";
 
@@ -131,13 +132,14 @@ export default function Home() {
           href="/"
           className="flex items-center gap-2.5 flex-shrink-0 rounded-lg outline-none focus-visible:ring-2 focus-visible:ring-indigo-400"
         >
-          <div
-            className="w-8 h-8 rounded-xl flex items-center justify-center flex-shrink-0 select-none shadow-lg"
-            style={{ background: "linear-gradient(135deg, #818cf8 0%, #4f46e5 100%)" }}
-            aria-hidden="true"
-          >
-            <span className="text-white font-bold text-sm tracking-tight">D</span>
-          </div>
+          <Image
+            src="/icon.png"
+            alt="Discern"
+            width={32}
+            height={32}
+            className="w-8 h-8 rounded-xl shadow-lg flex-shrink-0"
+            priority
+          />
           <div className="flex items-baseline gap-2">
             <span className="font-bold text-[15px] tracking-tight" style={{ color: "#f1f5f9" }}>Discern</span>
             <span className="hidden sm:block text-xs font-medium" style={{ color: "#475569" }}>Document Intelligence</span>
