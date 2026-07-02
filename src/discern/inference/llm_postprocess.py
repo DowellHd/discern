@@ -118,7 +118,7 @@ def _try_gemini(prompt: str) -> dict[str, Any] | None:
     if not api_key:
         return None
 
-    is_oauth = "." in api_key
+    is_oauth = api_key.startswith("ya29.")
     base = (
         f"https://generativelanguage.googleapis.com/v1beta/models/{_GEMINI_MODEL}:generateContent"
     )
