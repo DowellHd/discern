@@ -41,6 +41,7 @@ export default function Home() {
   const [batchResult, setBatchResult] = useState<BatchOut | null>(null);
   const [batchProgress, setBatchProgress] = useState<BatchProgress | null>(null);
   const [singleStagedFile, setSingleStagedFile] = useState<File | null>(null);
+  const [batchStagedFiles, setBatchStagedFiles] = useState<File[]>([]);
   const [loading, setLoading] = useState(false);
   const [warmingUp, setWarmingUp] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -391,8 +392,9 @@ export default function Home() {
                     key="batch"
                     mode="batch"
                     onFiles={handleFiles}
+                    onFilesChange={setBatchStagedFiles}
                     loading={loading}
-                    initialFiles={singleStagedFile ? [singleStagedFile] : []}
+                    initialFiles={batchStagedFiles.length > 0 ? batchStagedFiles : singleStagedFile ? [singleStagedFile] : []}
                   />
                 ) : (
                   <UploadZone

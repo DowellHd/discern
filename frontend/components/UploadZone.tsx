@@ -210,15 +210,18 @@ function SingleUploadZone({ onFile, onStage, loading, warmingUp }: Omit<SinglePr
 interface BatchProps {
   mode: "batch";
   onFiles: (files: File[]) => void;
+  onFilesChange?: (files: File[]) => void;
   loading: boolean;
   initialFiles?: File[];
 }
 
-function BatchUploadZone({ onFiles, loading, initialFiles }: Omit<BatchProps, "mode">) {
+function BatchUploadZone({ onFiles, onFilesChange, loading, initialFiles }: Omit<BatchProps, "mode">) {
   const [dragging, setDragging] = useState(false);
   const [staged, setStaged] = useState<File[]>(initialFiles ?? []);
   const [validationError, setValidationError] = useState<string | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => { onFilesChange?.(staged); }, [staged]); // eslint-disable-line react-hooks/exhaustive-deps
 
   function addFiles(incoming: FileList | File[]) {
     const files = Array.from(incoming);
@@ -427,7 +430,7 @@ export type UploadZoneProps = SingleProps | BatchProps;
 
 export function UploadZone(props: UploadZoneProps) {
   if (props.mode === "batch") {
-    return <BatchUploadZone onFiles={props.onFiles} loading={props.loading} initialFiles={props.initialFiles} />;
+    return <BatchUploadZone onFiles={props.onFiles} onFilesChange={props.onFilesChange} loading={props.loading} initialFiles={props.initialFiles} />;
   }
   return <SingleUploadZone onFile={props.onFile} onStage={props.onStage} loading={props.loading} warmingUp={props.warmingUp} />;
 }

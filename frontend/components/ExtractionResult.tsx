@@ -107,7 +107,7 @@ export function ExtractionResult({ extraction, onUpdate }: Props) {
     <section className="space-y-4 animate-fade-up">
       {/* ── Document header ──────────────────────────────── */}
       <div className="card px-5 py-4">
-        <div className="flex items-start justify-between gap-4 flex-wrap">
+        <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
           <div className="space-y-1.5 min-w-0">
             <div className="flex items-center gap-2 flex-wrap">
               <h2 className="text-lg font-bold text-slate-900 tracking-tight">{docLabel}</h2>
@@ -122,7 +122,7 @@ export function ExtractionResult({ extraction, onUpdate }: Props) {
             <p className="text-xs text-slate-400 font-medium">Extracted {createdAt}</p>
           </div>
 
-          <div className="flex items-center gap-2 flex-shrink-0 flex-wrap">
+          <div className="flex items-center gap-2 flex-wrap">
             {/* Follow-up status selector */}
             <div className="relative">
               <select
