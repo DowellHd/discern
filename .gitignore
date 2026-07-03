@@ -33,11 +33,12 @@ data/processed/
 data/synthetic/
 
 # Model artifacts
-checkpoints/
+checkpoints/*
 *.pt
 *.pth
 *.ckpt
 *.onnx
+!checkpoints/best.pt
 
 # Experiment tracking
 mlruns/
