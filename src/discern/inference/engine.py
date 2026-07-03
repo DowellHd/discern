@@ -7,9 +7,6 @@ from dataclasses import dataclass
 from pathlib import Path
 
 import structlog
-import torch
-import torch.nn.functional as F
-import torchvision.transforms as T
 from PIL import Image
 
 from discern.config import settings
@@ -17,21 +14,10 @@ from discern.data.preprocess import preprocess, preprocess_for_ocr
 from discern.data.schema import DocumentSchema
 from discern.inference import llm_postprocess
 from discern.inference.ocr import extract_handwritten_fields
-from discern.models.extractor import (
-    CATEGORY_OPTIONS,
-    DOC_TYPES,
-    INTERESTS_OPTIONS,
-    VISIT_TYPE_OPTIONS,
-    FieldExtractor,
-)
 
 log = structlog.get_logger()
 
 _IMG_SIZE = 224
-_transform = T.Compose(
-    [T.Resize((_IMG_SIZE, _IMG_SIZE)), T.ToTensor(), T.Normalize(mean=[0.5], std=[0.5])]
-)
-
 _ALLOWED_MIME = {"image/jpeg", "image/png", "image/tiff", "application/pdf"}
 _MAX_BYTES = 20 * 1024 * 1024  # 20 MB
 
@@ -62,14 +48,37 @@ class InferenceEngine:
         checkpoint_path: Path | None = None,
         device: str | None = None,
     ) -> None:
+        # Torch is imported here (not at module level) to defer its ~150 MB footprint
+        # until the first request, keeping startup memory under Render's 512 MB limit.
+        import gc
+
+        import torch
+        import torch.nn.functional as F
+        import torchvision.transforms as T
+        from discern.models.extractor import (
+            CATEGORY_OPTIONS,
+            DOC_TYPES,
+            INTERESTS_OPTIONS,
+            VISIT_TYPE_OPTIONS,
+            FieldExtractor,
+        )
+
+        self._torch = torch
+        self._F = F
+        self._DOC_TYPES = DOC_TYPES
+        self._VISIT_TYPE_OPTIONS = VISIT_TYPE_OPTIONS
+        self._INTERESTS_OPTIONS = INTERESTS_OPTIONS
+        self._CATEGORY_OPTIONS = CATEGORY_OPTIONS
+
         self.schema = schema
         self.device = torch.device(device or "cpu")
+        self._transform = T.Compose(
+            [T.Resize((_IMG_SIZE, _IMG_SIZE)), T.ToTensor(), T.Normalize(mean=[0.5], std=[0.5])]
+        )
         self.model = FieldExtractor(pretrained=False).to(self.device)
         self._checkpoint_loaded = False
 
         if checkpoint_path and checkpoint_path.exists():
-            import gc
-
             ckpt = torch.load(checkpoint_path, map_location="cpu", weights_only=False)
             self.model.load_state_dict(ckpt["model_state_dict"])
             del ckpt
@@ -85,28 +94,28 @@ class InferenceEngine:
     # Public
     # ------------------------------------------------------------------
 
-    @torch.no_grad()
     def predict(self, image: Image.Image, doc_type_override: str | None = None) -> InferenceResult:
         """Run inference on a PIL image; returns structured result."""
+        torch = self._torch
         clean = strip_exif(image)
         processed = preprocess(clean)
-        tensor = _transform(processed).unsqueeze(0).to(self.device)
-        logits = self.model(tensor)
+        tensor = self._transform(processed).unsqueeze(0).to(self.device)
 
-        # Use caller-supplied doc type if valid; otherwise use the classifier.
+        with torch.no_grad():
+            logits = self.model(tensor)
+
         if doc_type_override and doc_type_override in self.schema.document_types:
             dt_name = doc_type_override
         else:
-            dt_probs = F.softmax(logits["doc_type"], dim=-1)[0]
-            dt_name = DOC_TYPES[int(dt_probs.argmax().item())]
+            dt_probs = self._F.softmax(logits["doc_type"], dim=-1)[0]
+            dt_name = self._DOC_TYPES[int(dt_probs.argmax().item())]
 
         spec = self.schema.document_types.get(dt_name)
         hw_names = [f.name for f in spec.fields if f.capture == "handwritten"] if spec else []
 
-        # Run VLM OCR on the contrast-enhanced color image for handwritten fields.
         ocr_image = preprocess_for_ocr(clean) if hw_names else None
         ocr: dict[str, tuple[str | None, float]] = (
-            extract_handwritten_fields(ocr_image, hw_names, dt_name)  # type: ignore[arg-type]
+            extract_handwritten_fields(ocr_image, hw_names, dt_name)
             if ocr_image is not None
             else {}
         )
@@ -137,18 +146,18 @@ class InferenceEngine:
 
     def _decode(
         self,
-        logits: dict[str, torch.Tensor],
+        logits: dict,
         ocr: dict[str, tuple[str | None, float]] | None = None,
         doc_type_name: str | None = None,
     ) -> InferenceResult:
+        F = self._F
         dt_probs = F.softmax(logits["doc_type"], dim=-1)[0]
         dt_idx = int(dt_probs.argmax().item())
-        model_dt_name = DOC_TYPES[dt_idx]
+        model_dt_name = self._DOC_TYPES[dt_idx]
         model_dt_conf = float(dt_probs[dt_idx].item())
 
         if doc_type_name is not None:
             dt_name = doc_type_name
-            # User-supplied override: treat as full confidence unless model agrees
             dt_conf = model_dt_conf if dt_name == model_dt_name else 1.0
         else:
             dt_name = model_dt_name
@@ -200,32 +209,35 @@ class InferenceEngine:
             llm_refined=True,
         )
 
-    @staticmethod
     def _decode_field(
+        self,
         name: str,
         value_type: str,
         capture: str,
-        logits: dict[str, torch.Tensor],
+        logits: dict,
         ocr: dict[str, tuple[str | None, float]],
     ) -> tuple[str | None, float]:
+        torch = self._torch
+        F = self._F
+
         if capture != "checkbox":
             return ocr.get(name, (None, 0.0))
 
         if name == "visit_type":
             probs = F.softmax(logits["visit_type"][0], dim=-1)
             idx = int(probs.argmax().item())
-            return VISIT_TYPE_OPTIONS[idx], float(probs[idx].item())
+            return self._VISIT_TYPE_OPTIONS[idx], float(probs[idx].item())
 
         if name == "interests":
             probs = torch.sigmoid(logits["interests"][0])
-            selected = [INTERESTS_OPTIONS[i] for i, p in enumerate(probs) if p.item() > 0.5]
+            selected = [self._INTERESTS_OPTIONS[i] for i, p in enumerate(probs) if p.item() > 0.5]
             conf = float(probs.max().item())
             return (", ".join(selected) if selected else "none"), conf
 
         if name == "category":
             probs = F.softmax(logits["category"][0], dim=-1)
             idx = int(probs.argmax().item())
-            return CATEGORY_OPTIONS[idx], float(probs[idx].item())
+            return self._CATEGORY_OPTIONS[idx], float(probs[idx].item())
 
         if name == "contact_ok":
             prob = float(torch.sigmoid(logits["contact_ok"][0]).item())
