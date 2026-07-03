@@ -215,8 +215,10 @@ def list_templates(engine: InferenceEngine = Depends(get_inference_engine)) -> T
 
 
 @app.get("/health", response_model=HealthOut, tags=["meta"])
-def health(engine: InferenceEngine = Depends(get_inference_engine)) -> HealthOut:
-    return HealthOut(status="ok", model_loaded=engine._checkpoint_loaded)
+def health() -> HealthOut:
+    from discern.api.deps import _engine
+
+    return HealthOut(status="ok", model_loaded=_engine is not None and _engine._checkpoint_loaded)
 
 
 @app.get("/stats", response_model=StatsOut, tags=["meta"])

@@ -68,8 +68,12 @@ class InferenceEngine:
         self._checkpoint_loaded = False
 
         if checkpoint_path and checkpoint_path.exists():
+            import gc
+
             ckpt = torch.load(checkpoint_path, map_location="cpu", weights_only=False)
             self.model.load_state_dict(ckpt["model_state_dict"])
+            del ckpt
+            gc.collect()
             self._checkpoint_loaded = True
             log.info("checkpoint_loaded", path=str(checkpoint_path))
         else:
