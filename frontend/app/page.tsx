@@ -7,8 +7,16 @@ import { LibraryPanel } from "@/components/LibraryPanel";
 import { StatsPanel } from "@/components/StatsPanel";
 import { AuthModal } from "@/components/AuthModal";
 import Image from "next/image";
-import { extractDocument, extractBatch, getTemplates, getToken, clearToken } from "@/lib/api";
+import { extractDocument, getTemplates, getToken, clearToken } from "@/lib/api";
 import type { BatchOut, Extraction, Template } from "@/lib/types";
+
+interface BatchProgress {
+  total: number;
+  done: number;
+  current: string | null;
+  results: Extraction[];
+  errors: string[];
+}
 
 const DEMO_MODE = process.env.NEXT_PUBLIC_DEMO_MODE === "true";
 
@@ -31,6 +39,7 @@ const CATEGORY_LABELS: Record<string, string> = {
 export default function Home() {
   const [extraction, setExtraction] = useState<Extraction | null>(null);
   const [batchResult, setBatchResult] = useState<BatchOut | null>(null);
+  const [batchProgress, setBatchProgress] = useState<BatchProgress | null>(null);
   const [loading, setLoading] = useState(false);
   const [warmingUp, setWarmingUp] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -82,21 +91,32 @@ export default function Home() {
   const handleFiles = useCallback(async (files: File[]) => {
     setError(null);
     setExtraction(null);
+    setBatchResult(null);
+    const progress: BatchProgress = { total: files.length, done: 0, current: null, results: [], errors: [] };
+    setBatchProgress({ ...progress });
     setLoading(true);
-    try {
-      const result = await extractBatch(files);
-      setBatchResult(result);
-    } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : "Batch upload failed");
-    } finally {
-      setLoading(false);
+    for (const file of files) {
+      progress.current = file.name;
+      setBatchProgress({ ...progress });
+      try {
+        const result = await extractDocument(file, docType || undefined);
+        progress.results = [...progress.results, result];
+      } catch (err: unknown) {
+        progress.errors = [...progress.errors, `${file.name}: ${err instanceof Error ? err.message : "Failed"}`];
+      }
+      progress.done += 1;
+      setBatchProgress({ ...progress });
     }
-  }, []);
+    setBatchResult({ results: progress.results, errors: progress.errors });
+    setBatchProgress(null);
+    setLoading(false);
+  }, [docType]);
 
   function toggleBatchMode(next: boolean) {
     setBatchMode(next);
     setExtraction(null);
     setBatchResult(null);
+    setBatchProgress(null);
     setError(null);
   }
 
@@ -105,6 +125,47 @@ export default function Home() {
       return librarySelection
         ? <ExtractionResult extraction={librarySelection} onUpdate={setLibrarySelection} />
         : <EmptyResultState />;
+    }
+    if (batchProgress) {
+      const pct = batchProgress.total > 0 ? Math.round((batchProgress.done / batchProgress.total) * 100) : 0;
+      return (
+        <div className="card p-6 space-y-5 animate-fade-up">
+          <div>
+            <h2 className="text-base font-bold text-slate-800">Processing batch</h2>
+            <p className="text-xs text-slate-400 mt-0.5">
+              {batchProgress.done} of {batchProgress.total} complete
+              {batchProgress.current && ` · ${batchProgress.current}`}
+            </p>
+          </div>
+          <div className="space-y-1">
+            <div className="progress-track h-2 rounded-full" role="progressbar" aria-valuenow={pct} aria-valuemin={0} aria-valuemax={100}>
+              <div className="progress-thumb rounded-full transition-all duration-500" style={{ width: `${pct}%` }} />
+            </div>
+            <p className="text-xs text-slate-400 text-right">{pct}%</p>
+          </div>
+          {batchProgress.results.length > 0 && (
+            <div>
+              <p className="text-[11px] font-bold text-slate-500 uppercase tracking-widest mb-2">Completed</p>
+              <ul className="space-y-1.5">
+                {batchProgress.results.map((e) => (
+                  <li key={e.id} className="flex items-center gap-2 text-xs text-slate-700 bg-green-50 rounded-lg px-3 py-2">
+                    <svg className="w-3.5 h-3.5 text-green-500 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" /></svg>
+                    <span className="truncate font-medium">{e.doc_type.replace(/_/g, " ").replace(/\b\w/g, c => c.toUpperCase())}</span>
+                    <span className="ml-auto text-slate-400">{Math.round(e.doc_type_confidence * 100)}%</span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+          {batchProgress.errors.length > 0 && (
+            <ul className="space-y-1">
+              {batchProgress.errors.map((msg, i) => (
+                <li key={i} className="text-xs text-red-600 bg-red-50 rounded-lg px-3 py-2 truncate">{msg}</li>
+              ))}
+            </ul>
+          )}
+        </div>
+      );
     }
     if (batchResult) {
       return (
@@ -302,7 +363,7 @@ export default function Home() {
                     </select>
                     {!docType && (
                       <p className="text-xs mt-1" style={{ color: "#94a3b8" }}>
-                        Select the type for best results — the classifier is untrained.
+                        Auto-detect will identify the document type for you.
                       </p>
                     )}
                   </div>
