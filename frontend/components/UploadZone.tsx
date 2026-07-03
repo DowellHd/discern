@@ -427,7 +427,7 @@ export type UploadZoneProps = SingleProps | BatchProps;
 
 export function UploadZone(props: UploadZoneProps) {
   if (props.mode === "batch") {
-    return <BatchUploadZone onFiles={props.onFiles} loading={props.loading} />;
+    return <BatchUploadZone onFiles={props.onFiles} loading={props.loading} initialFiles={props.initialFiles} />;
   }
-  return <SingleUploadZone onFile={props.onFile} loading={props.loading} warmingUp={props.warmingUp} />;
+  return <SingleUploadZone onFile={props.onFile} onStage={props.onStage} loading={props.loading} warmingUp={props.warmingUp} />;
 }
