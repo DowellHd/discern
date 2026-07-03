@@ -167,11 +167,27 @@ export default function Home() {
         </div>
       );
     }
+    if (batchResult && extraction) {
+      return (
+        <div className="space-y-3">
+          <button
+            onClick={() => setExtraction(null)}
+            className="flex items-center gap-1.5 text-xs font-semibold text-indigo-400 hover:text-indigo-300 transition-colors"
+          >
+            <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M15 19l-7-7 7-7" />
+            </svg>
+            Back to batch results
+          </button>
+          <ExtractionResult extraction={extraction} onUpdate={setExtraction} />
+        </div>
+      );
+    }
     if (batchResult) {
       return (
         <BatchResultList
           batch={batchResult}
-          onSelect={(e) => { setExtraction(e); setBatchResult(null); }}
+          onSelect={(e) => setExtraction(e)}
         />
       );
     }
