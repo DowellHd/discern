@@ -40,6 +40,7 @@ export default function Home() {
   const [extraction, setExtraction] = useState<Extraction | null>(null);
   const [batchResult, setBatchResult] = useState<BatchOut | null>(null);
   const [batchProgress, setBatchProgress] = useState<BatchProgress | null>(null);
+  const [singleStagedFile, setSingleStagedFile] = useState<File | null>(null);
   const [loading, setLoading] = useState(false);
   const [warmingUp, setWarmingUp] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -391,12 +392,14 @@ export default function Home() {
                     mode="batch"
                     onFiles={handleFiles}
                     loading={loading}
+                    initialFiles={singleStagedFile ? [singleStagedFile] : []}
                   />
                 ) : (
                   <UploadZone
                     key={extraction?.id ?? "single"}
                     mode="single"
                     onFile={handleFile}
+                    onStage={setSingleStagedFile}
                     loading={loading}
                     warmingUp={warmingUp}
                   />

@@ -31,11 +31,12 @@ function PdfIcon() {
 interface SingleProps {
   mode: "single";
   onFile: (file: File) => void;
+  onStage?: (file: File | null) => void;
   loading: boolean;
   warmingUp: boolean;
 }
 
-function SingleUploadZone({ onFile, loading, warmingUp }: Omit<SingleProps, "mode">) {
+function SingleUploadZone({ onFile, onStage, loading, warmingUp }: Omit<SingleProps, "mode">) {
   const [dragging, setDragging] = useState(false);
   const [preview, setPreview] = useState<Preview | null>(null);
   const [validationError, setValidationError] = useState<string | null>(null);
@@ -61,11 +62,13 @@ function SingleUploadZone({ onFile, loading, warmingUp }: Omit<SingleProps, "mod
       const objectUrl = file.type === "application/pdf" ? null : URL.createObjectURL(file);
       return { file, objectUrl };
     });
+    onStage?.(file);
   }
 
   function clearPreview() {
     setPreview(null);
     setValidationError(null);
+    onStage?.(null);
     if (inputRef.current) inputRef.current.value = "";
   }
 
@@ -208,11 +211,12 @@ interface BatchProps {
   mode: "batch";
   onFiles: (files: File[]) => void;
   loading: boolean;
+  initialFiles?: File[];
 }
 
-function BatchUploadZone({ onFiles, loading }: Omit<BatchProps, "mode">) {
+function BatchUploadZone({ onFiles, loading, initialFiles }: Omit<BatchProps, "mode">) {
   const [dragging, setDragging] = useState(false);
-  const [staged, setStaged] = useState<File[]>([]);
+  const [staged, setStaged] = useState<File[]>(initialFiles ?? []);
   const [validationError, setValidationError] = useState<string | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
