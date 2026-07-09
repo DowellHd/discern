@@ -77,6 +77,64 @@ def test_extract_rejects_bad_mimetype(client, mock_engine) -> None:
 
 
 # ---------------------------------------------------------------------------
+# POST /extract/batch
+# ---------------------------------------------------------------------------
+
+
+def test_extract_batch_returns_200(client) -> None:
+    files = [
+        ("files", ("card1.png", make_png_bytes(), "image/png")),
+        ("files", ("card2.png", make_png_bytes(), "image/png")),
+    ]
+    resp = client.post("/extract/batch", files=files)
+    assert resp.status_code == 200
+
+
+def test_extract_batch_response_schema(client) -> None:
+    files = [("files", ("card1.png", make_png_bytes(), "image/png"))]
+    resp = client.post("/extract/batch", files=files)
+    body = resp.json()
+    assert "results" in body
+    assert "errors" in body
+    assert len(body["results"]) == 1
+    assert body["errors"] == []
+
+
+def test_extract_batch_processes_all_files(client) -> None:
+    files = [
+        ("files", ("a.png", make_png_bytes(), "image/png")),
+        ("files", ("b.png", make_png_bytes(), "image/png")),
+        ("files", ("c.png", make_png_bytes(), "image/png")),
+    ]
+    resp = client.post("/extract/batch", files=files)
+    assert len(resp.json()["results"]) == 3
+
+
+def test_extract_batch_continues_after_one_file_errors(client, mock_engine) -> None:
+    """One bad file must not abort the rest of the batch."""
+    call_count = 0
+
+    def flaky_validate(raw: bytes, content_type: str) -> None:
+        nonlocal call_count
+        call_count += 1
+        if call_count == 2:
+            raise ValueError("Corrupt file")
+
+    mock_engine.validate_upload.side_effect = flaky_validate
+    files = [
+        ("files", ("good1.png", make_png_bytes(), "image/png")),
+        ("files", ("bad.png", make_png_bytes(), "image/png")),
+        ("files", ("good2.png", make_png_bytes(), "image/png")),
+    ]
+    resp = client.post("/extract/batch", files=files)
+    assert resp.status_code == 200
+    body = resp.json()
+    assert len(body["results"]) == 2
+    assert len(body["errors"]) == 1
+    assert "bad.png" in body["errors"][0]
+
+
+# ---------------------------------------------------------------------------
 # GET /extractions/{id}/overlay
 # ---------------------------------------------------------------------------
 
@@ -187,7 +245,9 @@ def test_register_creates_account(client, monkeypatch) -> None:
 
     monkeypatch.setattr(settings, "demo_mode", False)
     monkeypatch.setattr(settings, "jwt_secret", _TEST_JWT_SECRET)
-    resp = client.post("/auth/register", json={"email": "alice@test.com", "password": "password123"})
+    resp = client.post(
+        "/auth/register", json={"email": "alice@test.com", "password": "password123"}
+    )
     assert resp.status_code == 200
     body = resp.json()
     assert "access_token" in body
