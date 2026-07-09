@@ -246,3 +246,138 @@ def test_training_candidates_empty(client) -> None:
     assert "total" in body
     assert "candidates" in body
     assert body["total"] == 0
+
+
+# ---------------------------------------------------------------------------
+# Sensitive field encryption at rest (Phase 5)
+# ---------------------------------------------------------------------------
+
+
+def _prayer_request_result(request_text_raw: str = "please pray for my mother"):
+    from discern.inference.engine import FieldResult, InferenceResult
+
+    return InferenceResult(
+        doc_type="prayer_request",
+        doc_type_confidence=0.95,
+        fields=[
+            FieldResult(
+                "requester_name", "Jane Doe", 0.9, "handwritten", False, raw_value="Jane Doe"
+            ),
+            FieldResult("service_date", None, 0.0, "handwritten", False),
+            FieldResult("category", "healing", 0.9, "checkbox", False),
+            FieldResult(
+                "request_text",
+                "[REDACTED]",
+                0.8,
+                "handwritten",
+                True,
+                raw_value=request_text_raw,
+            ),
+            FieldResult("contact_ok", "True", 0.9, "checkbox", False),
+        ],
+    )
+
+
+def _reset_fernet_cache() -> None:
+    from discern.api import auth
+
+    auth._fernet_checked = False
+    auth._fernet_instance = None
+
+
+def test_sensitive_field_masked_in_response(client, mock_engine) -> None:
+    mock_engine.predict.return_value = _prayer_request_result()
+    resp = client.post("/extract", files={"file": ("card.png", make_png_bytes(), "image/png")})
+    field = next(f for f in resp.json()["fields"] if f["name"] == "request_text")
+    assert field["value"] == "[REDACTED]"
+    assert field["sensitive"] is True
+
+
+def test_sensitive_field_encrypted_at_rest_with_key(
+    client, mock_engine, db_session, monkeypatch
+) -> None:
+    from cryptography.fernet import Fernet
+
+    from discern.api import auth
+    from discern.config import settings
+    from discern.db.models import ExtractionField
+
+    monkeypatch.setattr(settings, "field_encryption_key", Fernet.generate_key().decode())
+    _reset_fernet_cache()
+
+    mock_engine.predict.return_value = _prayer_request_result()
+    resp = client.post("/extract", files={"file": ("card.png", make_png_bytes(), "image/png")})
+    doc_id = resp.json()["id"]
+
+    stored = (
+        db_session.query(ExtractionField)
+        .filter_by(document_id=doc_id, field_name="request_text")
+        .one()
+    )
+    assert stored.field_value != "please pray for my mother"
+    assert auth.decrypt_field(stored.field_value) == "please pray for my mother"
+
+
+def test_sensitive_field_not_persisted_as_plaintext_without_key(
+    client, mock_engine, db_session, monkeypatch
+) -> None:
+    from discern.config import settings
+    from discern.db.models import ExtractionField
+
+    monkeypatch.setattr(settings, "field_encryption_key", "")
+    _reset_fernet_cache()
+
+    mock_engine.predict.return_value = _prayer_request_result()
+    resp = client.post("/extract", files={"file": ("card.png", make_png_bytes(), "image/png")})
+    doc_id = resp.json()["id"]
+
+    stored = (
+        db_session.query(ExtractionField)
+        .filter_by(document_id=doc_id, field_name="request_text")
+        .one()
+    )
+    assert stored.field_value == "[REDACTED]"
+
+
+def test_patch_sensitive_field_is_encrypted(client, mock_engine, db_session, monkeypatch) -> None:
+    from cryptography.fernet import Fernet
+
+    from discern.api import auth
+    from discern.config import settings
+    from discern.db.models import ExtractionField
+
+    monkeypatch.setattr(settings, "field_encryption_key", Fernet.generate_key().decode())
+    _reset_fernet_cache()
+
+    mock_engine.predict.return_value = _prayer_request_result()
+    resp = client.post("/extract", files={"file": ("card.png", make_png_bytes(), "image/png")})
+    doc_id = resp.json()["id"]
+
+    patch_resp = client.patch(
+        f"/extractions/{doc_id}/fields/request_text", json={"value": "please pray harder"}
+    )
+    assert patch_resp.status_code == 200
+    field = next(f for f in patch_resp.json()["fields"] if f["name"] == "request_text")
+    assert field["value"] == "[REDACTED]"
+
+    stored = (
+        db_session.query(ExtractionField)
+        .filter_by(document_id=doc_id, field_name="request_text")
+        .one()
+    )
+    assert stored.field_value != "please pray harder"
+    assert auth.decrypt_field(stored.field_value) == "please pray harder"
+
+
+def test_training_candidates_excludes_sensitive_fields(client, mock_engine) -> None:
+    mock_engine.predict.return_value = _prayer_request_result()
+    resp = client.post("/extract", files={"file": ("card.png", make_png_bytes(), "image/png")})
+    doc_id = resp.json()["id"]
+
+    client.patch(f"/extractions/{doc_id}/fields/requester_name", json={"value": "Janet Doe"})
+    client.patch(f"/extractions/{doc_id}/fields/request_text", json={"value": "please pray harder"})
+
+    tc_resp = client.get("/training-candidates")
+    names = {c["field_name"] for c in tc_resp.json()["candidates"]}
+    assert "requester_name" in names
+    assert "request_text" not in names

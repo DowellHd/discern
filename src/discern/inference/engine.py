@@ -29,6 +29,10 @@ class FieldResult:
     confidence: float
     capture: str
     sensitive: bool
+    # True decoded value, even for sensitive fields where `value` is masked to
+    # "[REDACTED]" for display. Used to encrypt-at-rest without ever persisting
+    # the plaintext under the display field.
+    raw_value: str | None = None
 
 
 @dataclass
@@ -180,6 +184,7 @@ class InferenceEngine:
                     confidence=round(confidence, 4),
                     capture=field.capture,
                     sensitive=field.sensitive,
+                    raw_value=value,
                 )
             )
         return InferenceResult(
@@ -198,6 +203,7 @@ class InferenceEngine:
                         confidence=max(f.confidence, 0.85),
                         capture=f.capture,
                         sensitive=f.sensitive,
+                        raw_value=corrections[f.name],
                     )
                 )
             else:

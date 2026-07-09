@@ -22,7 +22,7 @@ from discern.api.auth import (
     hash_password,
     verify_password,
 )
-from discern.api.deps import get_db, get_inference_engine
+from discern.api.deps import get_db, get_document_schema, get_inference_engine
 from discern.api.schemas import (
     BatchOut,
     ExportHintsOut,
@@ -76,14 +76,27 @@ def _save_image(img: Image.Image, dest: Path) -> None:
     img.save(dest, format="PNG")
 
 
+def _encrypt_sensitive_value(value: str) -> str:
+    """Encrypt a sensitive field for storage if a key is configured.
+
+    Without a configured key, sensitive plaintext must never be persisted at
+    all — fall back to storing the same "[REDACTED]" placeholder shown in API
+    responses, rather than writing the real value unencrypted.
+    """
+    return encrypt_field(value) if settings.field_encryption_key else "[REDACTED]"
+
+
 def _doc_to_out(doc: Document, request_base: str = "") -> ExtractionOut:
+    spec = get_document_schema().document_types.get(doc.doc_type)
+    sensitive_names = {f.name for f in spec.fields if f.sensitive} if spec else set()
+
     fields = [
         FieldOut(
             name=f.field_name,
-            value=f.field_value,
+            value="[REDACTED]" if f.field_name in sensitive_names else f.field_value,
             confidence=f.confidence,
             capture=f.capture_type,
-            sensitive=False,
+            sensitive=f.field_name in sensitive_names,
             corrected=f.corrected,
         )
         for f in doc.fields
@@ -144,12 +157,12 @@ def _process_upload(
         llm_refined=result.llm_refined,
     )
     for fr in result.fields:
-        raw_value = fr.value
-        # Encrypt sensitive fields before persisting (value may be "[REDACTED]" from engine)
+        # For sensitive fields, `fr.value` is already masked to "[REDACTED]" by the
+        # engine — encrypt the true decoded value (`raw_value`) instead so the
+        # plaintext is never written to the DB.
+        is_sensitive = fr.name in sensitive_names
         stored_value = (
-            encrypt_field(raw_value)
-            if (fr.name in sensitive_names and raw_value and raw_value != "[REDACTED]")
-            else raw_value
+            _encrypt_sensitive_value(fr.raw_value) if (is_sensitive and fr.raw_value) else fr.value
         )
         doc.fields.append(
             ExtractionField(
@@ -328,7 +341,11 @@ def patch_field(
     field = next((f for f in doc.fields if f.field_name == field_name), None)
     if field is None:
         raise HTTPException(status_code=404, detail=f"Field {field_name!r} not found")
-    field.field_value = body.value
+    spec = get_document_schema().document_types.get(doc.doc_type)
+    is_sensitive = any(f.name == field_name and f.sensitive for f in spec.fields) if spec else False
+    field.field_value = (
+        _encrypt_sensitive_value(body.value) if (is_sensitive and body.value) else body.value
+    )
     field.corrected = True
     db.commit()
     db.refresh(doc)
@@ -654,15 +671,32 @@ def training_candidates(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ) -> TrainingCandidatesOut:
-    """Return user-corrected field values ready for retraining."""
-    query = (
+    """Return user-corrected field values ready for retraining.
+
+    Sensitive fields are excluded — they're masked in every other API response
+    and must not leak into training data either.
+    """
+    rows = (
         db.query(ExtractionField, Document.doc_type)
         .join(Document, ExtractionField.document_id == Document.id)
         .filter(ExtractionField.corrected == True)  # noqa: E712
         .filter(Document.user_id == current_user.id)
+        .order_by(ExtractionField.document_id)
+        .all()
     )
-    total = query.count()
-    rows = query.offset(offset).limit(limit).all()
+
+    schema = get_document_schema()
+    sensitive_cache: dict[str, set[str]] = {}
+
+    def _sensitive_names(dt: str) -> set[str]:
+        if dt not in sensitive_cache:
+            spec = schema.document_types.get(dt)
+            sensitive_cache[dt] = {f.name for f in spec.fields if f.sensitive} if spec else set()
+        return sensitive_cache[dt]
+
+    non_sensitive = [(ef, dt) for ef, dt in rows if ef.field_name not in _sensitive_names(dt)]
+    total = len(non_sensitive)
+    page = non_sensitive[offset : offset + limit]
     candidates = [
         TrainingCandidate(
             document_id=ef.document_id,
@@ -670,6 +704,6 @@ def training_candidates(
             field_name=ef.field_name,
             corrected_value=ef.field_value,
         )
-        for ef, dt in rows
+        for ef, dt in page
     ]
     return TrainingCandidatesOut(total=total, candidates=candidates)
