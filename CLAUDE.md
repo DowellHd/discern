@@ -92,13 +92,43 @@ Swapping `configs/documents.yaml` is how the document domain is retargeted.
 
 ## Phase Plan
 
+Audited against actual code 2026-07-08 (commit history didn't follow phase order, and this
+checklist had gone stale — trust this over old memory of "Phase 0 done, 1-6 pending").
+
 - **Phase 0** — Vision + foundations: expanded template registry, document_type plumbing end-to-end, CLAUDE.md updated. ✅
-- **Phase 1** — Visual + UX overhaul: design system, upload states, cold-start UX, results hero screen, PWA, a11y.
-- **Phase 2** — Generalize document types: synthetic data for new templates, classifier, model extension, batch upload.
-- **Phase 3** — Daily-use features: library/search/folders, type-aware exports (vCard/iCal/expense CSV), review queue.
-- **Phase 4** — Intelligence layer: optional LLM post-processor, feature-flagged, cost-aware.
-- **Phase 5** — Accounts + privacy: lightweight auth, no-signup demo mode, encryption at rest.
+- **Phase 1** — Visual + UX overhaul: design system, upload states, cold-start UX, PWA, a11y. ✅
+  Real gap: results panel has no distinct "hero" reveal treatment (it's a well-built panel, just not a hero moment).
+- **Phase 2** — Generalize document types: synthetic data for all 9 templates, classifier, model extension. ✅
+  `POST /extract/batch` exists alongside a frontend client-side loop over single `/extract` calls — this is
+  intentional, not dead code: the client-side loop gives live per-file progress (added deliberately in
+  "Batch: per-file live progress"), which a single batched request/response can't provide. The batch endpoint
+  remains for programmatic/API consumers. Fixed 2026-07-08: added test coverage for `/extract/batch`
+  (`tests/test_api.py`) since it had none before.
+- **Phase 3** — Daily-use features: library/search, type-aware exports (vCard/iCal/expense CSV), review queue. ✅
+  Folders were never built (not necessarily needed — reconsider before building).
+- **Phase 4** — Intelligence layer: optional LLM post-processor, feature-flagged, cost-aware. ✅ fully done as scoped.
+- **Phase 5** — Accounts + privacy: lightweight auth, no-signup demo mode. ✅
+  Fixed 2026-07-08: "encryption at rest" was dead code — sensitive fields were replaced with `"[REDACTED]"`
+  in `inference/engine.py` *before* `encrypt_field` ran in `api/app.py`, so real values were never encrypted,
+  and `decrypt_field` was never called anywhere. Now the true value is encrypted when
+  `DISCERN_FIELD_ENCRYPTION_KEY` is set, and falls back to storing `"[REDACTED]"` (never plaintext) when no
+  key is set. `/training-candidates` and `PATCH /fields/{name}` mask/encrypt consistently with every other
+  read path.
 - **Phase 6** — MLOps + evals: per-type metrics, labeled benchmark, model card, feedback loop, README results table.
+  Real gaps (biggest remaining chunk of work):
+  - Per-doc-type P/R/F1 breakdown is implemented in `eval/metrics.py` but `reports/eval.json`/`eval.md`/README
+    were never regenerated after the 9-type expansion — still showing old capture-type-only numbers. Local OCR
+    (Ollama) was found hung/memory-starved during the regen attempt; rerunning against the Anthropic OCR
+    fallback instead.
+  - Fixed 2026-07-08: `scripts/retrain_from_feedback.py` + `src/discern/training/feedback.py` fine-tune the
+    classification heads (visit_type, interests, category, contact_ok — the only fields with a matching model
+    head) on corrected values pulled from the DB, masked per-sample to just the corrected field since a
+    correction only gives ground truth for one field per document. Writes to `checkpoints/finetuned.pt`,
+    never auto-promotes to `best.pt` — that stays a manual, reviewed step. Handwritten/freetext corrections
+    aren't usable here (that's OCR output, not something this classifier predicts).
+  - No model card exists.
+  - "Benchmark" is reproducible seeded synthetic eval, not a persisted labeled dataset — fine as-is unless a
+    real held-out benchmark is wanted.
 
 **GLOBAL RULES (apply every phase):**
 - NEVER push or deploy. Make changes, run the gate, show diff + local preview, then STOP. User pushes.
