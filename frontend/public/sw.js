@@ -1,4 +1,4 @@
-const CACHE = "discern-v2";
+const CACHE = "discern-v3";
 const PRECACHE = ["/icon-192x192.png", "/icon-512x512.png"];
 
 self.addEventListener("install", (event) => {
