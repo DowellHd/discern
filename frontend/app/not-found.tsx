@@ -1,6 +1,7 @@
 import Link from "next/link";
+import { BACK_SOON } from "@/lib/back-soon";
 
-export const metadata = { title: "Page not found" };
+export const metadata = BACK_SOON ? {} : { title: "Page not found" };
 
 export default function NotFound() {
   return (

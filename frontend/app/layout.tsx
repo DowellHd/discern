@@ -3,6 +3,8 @@ import { Inter } from "next/font/google";
 import "./globals.css";
 import { ServiceWorkerRegistration } from "./sw-register";
 import { InstallBanner } from "./install-banner";
+import { BackSoon } from "@/components/BackSoon";
+import { BACK_SOON } from "@/lib/back-soon";
 
 const inter = Inter({
   subsets: ["latin"],
@@ -12,7 +14,7 @@ const inter = Inter({
 
 const BASE_URL = process.env.NEXT_PUBLIC_APP_URL ?? "https://discern.dowellstandley.com";
 
-export const metadata: Metadata = {
+const appMetadata: Metadata = {
   title: {
     default: "Discern — Document Intelligence",
     template: "%s · Discern",
@@ -40,6 +42,27 @@ export const metadata: Metadata = {
   },
 };
 
+const BACK_SOON_TITLE = "We'll be back soon · Discern";
+const BACK_SOON_DESCRIPTION = "Discern is temporarily unavailable. Thanks for your patience.";
+
+const backSoonMetadata: Metadata = {
+  ...appMetadata,
+  title: { absolute: BACK_SOON_TITLE },
+  description: BACK_SOON_DESCRIPTION,
+  openGraph: {
+    ...appMetadata.openGraph,
+    title: BACK_SOON_TITLE,
+    description: BACK_SOON_DESCRIPTION,
+  },
+  twitter: {
+    ...appMetadata.twitter,
+    title: BACK_SOON_TITLE,
+    description: BACK_SOON_DESCRIPTION,
+  },
+};
+
+export const metadata: Metadata = BACK_SOON ? backSoonMetadata : appMetadata;
+
 export const viewport: Viewport = {
   themeColor: "#4f46e5",
 };
@@ -49,8 +72,8 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
     <html lang="en" className={`h-full ${inter.variable}`}>
       <body className="min-h-full flex flex-col font-sans bg-slate-50 text-slate-800 antialiased">
         <ServiceWorkerRegistration />
-        <InstallBanner />
-        {children}
+        {!BACK_SOON && <InstallBanner />}
+        {BACK_SOON ? <BackSoon /> : children}
       </body>
     </html>
   );
