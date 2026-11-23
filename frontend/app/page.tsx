@@ -1,5 +1,6 @@
 "use client";
 import { useState, useCallback, useEffect, useRef } from "react";
+import { DemoSamples, OFFLINE_DEMO } from "@/components/DemoSamples";
 import { UploadZone } from "@/components/UploadZone";
 import { ExtractionResult } from "@/components/ExtractionResult";
 import { BatchResultList } from "@/components/BatchResultList";
@@ -397,6 +398,8 @@ export default function Home() {
                     initialFiles={batchStagedFiles.length > 0 ? batchStagedFiles : singleStagedFile ? [singleStagedFile] : []}
                   />
                 ) : (
+                  <>
+                  {OFFLINE_DEMO && <DemoSamples onPick={handleFile} disabled={loading} />}
                   <UploadZone
                     key={extraction?.id ?? "single"}
                     mode="single"
@@ -405,6 +408,7 @@ export default function Home() {
                     loading={loading}
                     warmingUp={warmingUp}
                   />
+                  </>
                 )}
 
                 {error && (

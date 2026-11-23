@@ -170,3 +170,27 @@ export async function getReviewQueue(
   });
   return _json(await fetch(`${BASE}/review?${params}`, { headers: _authHeaders() }));
 }
+
+// ---------------------------------------------------------------------------
+// Offline demo (only used when NEXT_PUBLIC_OFFLINE_DEMO=true; the API serves these routes
+// only when DISCERN_OFFLINE_DEMO is on)
+// ---------------------------------------------------------------------------
+
+export interface DemoSample {
+  file: string;
+  label: string;
+  doc_type: string;
+  url: string;
+}
+
+export async function getDemoSamples(): Promise<DemoSample[]> {
+  return _json(await fetch(`${BASE}/demo/samples`));
+}
+
+/** Download a bundled sample document as a File so it goes through the normal upload path. */
+export async function fetchDemoSampleFile(sample: DemoSample): Promise<File> {
+  const res = await fetch(`${BASE}${sample.url}`);
+  if (!res.ok) throw new Error(`HTTP ${res.status}`);
+  const blob = await res.blob();
+  return new File([blob], sample.file, { type: blob.type || "image/jpeg" });
+}
