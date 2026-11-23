@@ -33,6 +33,8 @@ from typing import Any
 import structlog
 from PIL import Image
 
+from discern.config import settings
+
 log = structlog.get_logger()
 
 _CONF_HIT = 0.82
@@ -413,6 +415,12 @@ def extract_handwritten_fields(
     """
     if not field_names:
         return {}
+
+    if settings.offline_demo:
+        # Offline demo: no OCR binary, no Ollama/Gemini/Anthropic call — local mock only.
+        from discern.demo.mock import mock_handwritten_fields
+
+        return mock_handwritten_fields(image, field_names, doc_type)
 
     result = _try_tesseract(image, field_names, doc_type)
     if result is not None:

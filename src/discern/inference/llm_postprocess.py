@@ -17,6 +17,8 @@ from typing import Any
 
 import structlog
 
+from discern.config import settings
+
 log = structlog.get_logger()
 
 # Haiku 4.5 pricing ($ per million tokens)
@@ -214,6 +216,10 @@ def refine(
     Returns {} when no backend is available or nothing needs correcting.
     """
     if not field_values:
+        return {}
+
+    if settings.offline_demo:
+        # Offline demo: never call Gemini or Anthropic.
         return {}
 
     prompt = _build_prompt(doc_type, field_values)

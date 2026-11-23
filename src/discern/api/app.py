@@ -5,6 +5,8 @@ from __future__ import annotations
 import csv
 import io
 import uuid
+from collections.abc import AsyncIterator
+from contextlib import asynccontextmanager
 from pathlib import Path
 
 import structlog
@@ -52,10 +54,22 @@ log = structlog.get_logger()
 
 _REVIEW_THRESHOLD = 0.70  # doc_type_confidence below this → review queue
 
+
+@asynccontextmanager
+async def _lifespan(_app: FastAPI) -> AsyncIterator[None]:
+    if settings.offline_demo:
+        # Offline demo: create the SQLite tables and seed the library on first run.
+        from discern.demo.bootstrap import init_demo
+
+        init_demo()
+    yield
+
+
 app = FastAPI(
     title="Discern",
     description="Extracts structured data from paper church records.",
     version="0.2.0",
+    lifespan=_lifespan,
 )
 
 app.add_middleware(
@@ -707,3 +721,13 @@ def training_candidates(
         for ef, dt in page
     ]
     return TrainingCandidatesOut(total=total, candidates=candidates)
+
+
+# ---------------------------------------------------------------------------
+# Offline demo routes (only registered when DISCERN_OFFLINE_DEMO=true)
+# ---------------------------------------------------------------------------
+
+if settings.offline_demo:
+    from discern.demo.router import router as _demo_router
+
+    app.include_router(_demo_router)

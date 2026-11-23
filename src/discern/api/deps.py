@@ -40,8 +40,14 @@ _engine: InferenceEngine | None = None
 def get_inference_engine() -> InferenceEngine:
     global _engine
     if _engine is None:
-        ckpt = settings.checkpoints_dir / "best.pt"
-        _engine = InferenceEngine(schema=get_document_schema(), checkpoint_path=ckpt)
+        if settings.offline_demo and not settings.offline_demo_real_model:
+            # Offline demo: mock engine, no torch / checkpoint / OCR / LLM (see discern.demo).
+            from discern.demo.engine import DemoInferenceEngine
+
+            _engine = DemoInferenceEngine(schema=get_document_schema())
+        else:
+            ckpt = settings.checkpoints_dir / "best.pt"
+            _engine = InferenceEngine(schema=get_document_schema(), checkpoint_path=ckpt)
     return _engine
 
 
