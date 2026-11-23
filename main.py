@@ -13,6 +13,11 @@ from __future__ import annotations
 
 import argparse
 import os
+import sys
+from pathlib import Path
+
+# Run straight from a clone: no `pip install -e .` needed.
+sys.path.insert(0, str(Path(__file__).resolve().parent / "src"))
 
 
 def main() -> None:
