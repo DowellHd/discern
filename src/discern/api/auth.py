@@ -19,6 +19,7 @@ from __future__ import annotations
 
 import os
 from datetime import UTC, datetime, timedelta
+from typing import TYPE_CHECKING
 
 import structlog
 from fastapi import Depends, HTTPException, status
@@ -30,6 +31,9 @@ from sqlalchemy.orm import Session
 from discern.api.deps import get_db
 from discern.config import settings
 from discern.db.models import User
+
+if TYPE_CHECKING:
+    from cryptography.fernet import Fernet
 
 log = structlog.get_logger()
 
@@ -134,7 +138,7 @@ def get_current_user(
 # ---------------------------------------------------------------------------
 
 
-def _fernet() -> object | None:
+def _fernet() -> Fernet | None:
     key = settings.field_encryption_key
     if not key:
         return None
@@ -147,11 +151,11 @@ def _fernet() -> object | None:
         return None
 
 
-_fernet_instance = None
+_fernet_instance: Fernet | None = None
 _fernet_checked = False
 
 
-def _get_fernet() -> object | None:
+def _get_fernet() -> Fernet | None:
     global _fernet_instance, _fernet_checked
     if not _fernet_checked:
         _fernet_instance = _fernet()
@@ -164,7 +168,7 @@ def encrypt_field(value: str) -> str:
     f = _get_fernet()
     if f is None:
         return value
-    return f.encrypt(value.encode()).decode()  # type: ignore[union-attr]
+    return f.encrypt(value.encode()).decode()
 
 
 def decrypt_field(value: str) -> str:
@@ -173,6 +177,6 @@ def decrypt_field(value: str) -> str:
     if f is None:
         return value
     try:
-        return f.decrypt(value.encode()).decode()  # type: ignore[union-attr]
+        return f.decrypt(value.encode()).decode()
     except Exception:
         return value

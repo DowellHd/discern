@@ -56,7 +56,7 @@ def draw_overlay(image: Image.Image, result: InferenceResult) -> Image.Image:
     px = orig_w  # panel x-start
 
     # Header
-    draw.rectangle([px, 0, canvas_w, _HDR_H], fill=_HDR_BG)
+    draw.rectangle((px, 0, canvas_w, _HDR_H), fill=_HDR_BG)
     f_hdr = _load_font(14)
     doc_label = result.doc_type.replace("_", " ").title()
     draw.text(
@@ -74,7 +74,7 @@ def draw_overlay(image: Image.Image, result: InferenceResult) -> Image.Image:
         color = _conf_color(field.confidence)
 
         # Confidence bar (left 4 px strip)
-        draw.rectangle([px, y, px + 4, y + _ROW_H - 4], fill=color)
+        draw.rectangle((px, y, px + 4, y + _ROW_H - 4), fill=color)
 
         # Field name
         label = field.name.replace("_", " ").title()
