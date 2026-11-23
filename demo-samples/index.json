@@ -1,0 +1,230 @@
+[
+  {
+    "file": "connection_card_1.jpg",
+    "doc_type": "connection_card",
+    "label": "Connection Card 1",
+    "fields": {
+      "full_name": "Chris Curtis",
+      "visit_type": "returning",
+      "email": "nicholsonclinton@example.net",
+      "phone": "(083) 016-6131",
+      "service_date": "09/06/2026",
+      "interests": "baptism, membership",
+      "notes": "Would like information about volunteering."
+    }
+  },
+  {
+    "file": "connection_card_2.jpg",
+    "doc_type": "connection_card",
+    "label": "Connection Card 2",
+    "fields": {
+      "full_name": "Amy Brown",
+      "visit_type": "first_time",
+      "email": "tylerschmidt@example.com",
+      "phone": "(797) 543-2319",
+      "service_date": "05/19/2026",
+      "interests": "membership",
+      "notes": "Please send the newsletter by email."
+    }
+  },
+  {
+    "file": "prayer_request_1.jpg",
+    "doc_type": "prayer_request",
+    "label": "Prayer Request 1",
+    "fields": {
+      "requester_name": null,
+      "service_date": "04/14/2026",
+      "category": "thanksgiving",
+      "request_text": "Please remember our neighbor who is going through a hard season.",
+      "contact_ok": "False"
+    }
+  },
+  {
+    "file": "prayer_request_2.jpg",
+    "doc_type": "prayer_request",
+    "label": "Prayer Request 2",
+    "fields": {
+      "requester_name": "Gregory Crawford",
+      "service_date": "10/23/2026",
+      "category": "other",
+      "request_text": "Please pray for my mother's recovery after surgery.",
+      "contact_ok": "True"
+    }
+  },
+  {
+    "file": "giving_envelope_1.jpg",
+    "doc_type": "giving_envelope",
+    "label": "Giving Envelope 1",
+    "fields": {
+      "donor_name": "Stacy Reed",
+      "envelope_date": "01/04/2026",
+      "amount": "$50.00",
+      "fund": "missions",
+      "memo": "Missions offering"
+    }
+  },
+  {
+    "file": "giving_envelope_2.jpg",
+    "doc_type": "giving_envelope",
+    "label": "Giving Envelope 2",
+    "fields": {
+      "donor_name": "Miss Jamie Hall",
+      "envelope_date": "10/28/2026",
+      "amount": "$50.00",
+      "fund": "building",
+      "memo": "Monthly tithe"
+    }
+  },
+  {
+    "file": "receipt_1.jpg",
+    "doc_type": "receipt",
+    "label": "Receipt 1",
+    "fields": {
+      "merchant_name": "Nichols-Bishop",
+      "transaction_date": "06/27/2026",
+      "total_amount": "$18.16",
+      "tax_amount": "$1.38",
+      "payment_method": "credit",
+      "category": "retail",
+      "items_summary": "USB-C cable, Batteries (AA)"
+    }
+  },
+  {
+    "file": "receipt_2.jpg",
+    "doc_type": "receipt",
+    "label": "Receipt 2",
+    "fields": {
+      "merchant_name": "Morales, Lee and Rollins",
+      "transaction_date": "10/04/2026",
+      "total_amount": "$148.59",
+      "tax_amount": "$11.32",
+      "payment_method": null,
+      "category": "utilities",
+      "items_summary": "Blueberry muffin, Hand soap"
+    }
+  },
+  {
+    "file": "business_card_1.jpg",
+    "doc_type": "business_card",
+    "label": "Business Card 1",
+    "fields": {
+      "full_name": "Candice Johnson",
+      "job_title": "Secretary, company",
+      "company": "Thomas-Daniels",
+      "email": "changkenneth@example.net",
+      "phone": "(148) 525-3888",
+      "website": "https://www.cain.com/",
+      "address": "Science dinner military green ahead agreement evidence else realize what language view."
+    }
+  },
+  {
+    "file": "business_card_2.jpg",
+    "doc_type": "business_card",
+    "label": "Business Card 2",
+    "fields": {
+      "full_name": "Tina Diaz MD",
+      "job_title": null,
+      "company": "Harrison LLC",
+      "email": "timothygalloway@example.net",
+      "phone": "(075) 116-3726",
+      "website": "https://www.foster.com/",
+      "address": "Year agree opportunity let pretty particularly other."
+    }
+  },
+  {
+    "file": "handwritten_note_1.jpg",
+    "doc_type": "handwritten_note",
+    "label": "Handwritten Note 1",
+    "fields": {
+      "note_text": "Call the contractor about the quote by Friday.",
+      "date_written": "08/30/2026",
+      "author": "Samantha Clark"
+    }
+  },
+  {
+    "file": "handwritten_note_2.jpg",
+    "doc_type": "handwritten_note",
+    "label": "Handwritten Note 2",
+    "fields": {
+      "note_text": "Meeting recap: ship the draft Tuesday, review with Priya on Wednesday.",
+      "date_written": "04/21/2026",
+      "author": null
+    }
+  },
+  {
+    "file": "generic_form_1.jpg",
+    "doc_type": "generic_form",
+    "label": "Generic Form 1",
+    "fields": {
+      "form_title": "Repurpose Next-Generation Mindshare",
+      "form_content": "Volunteer sign-up for the spring cleanup, Saturday morning shift.",
+      "form_date": "06/15/2026"
+    }
+  },
+  {
+    "file": "generic_form_2.jpg",
+    "doc_type": "generic_form",
+    "label": "Generic Form 2",
+    "fields": {
+      "form_title": "Transform Leading-Edge Action-Items",
+      "form_content": "Annual membership renewal. No changes to contact details this year.",
+      "form_date": "01/30/2026"
+    }
+  },
+  {
+    "file": "invoice_1.jpg",
+    "doc_type": "invoice",
+    "label": "Invoice 1",
+    "fields": {
+      "vendor_name": "Ramirez, Romero and Aguirre",
+      "invoice_number": "INV-2026-1420",
+      "invoice_date": "10/18/2026",
+      "due_date": "12/02/2026",
+      "subtotal": "$3,957.64",
+      "tax_amount": "$326.51",
+      "total_due": "$4,284.15",
+      "payment_terms": "Net 45"
+    }
+  },
+  {
+    "file": "invoice_2.jpg",
+    "doc_type": "invoice",
+    "label": "Invoice 2",
+    "fields": {
+      "vendor_name": "Mccarthy PLC",
+      "invoice_number": "INV-2026-3880",
+      "invoice_date": "06/30/2026",
+      "due_date": "08/14/2026",
+      "subtotal": "$3,664.82",
+      "tax_amount": "$302.35",
+      "total_due": "$3,967.17",
+      "payment_terms": "Net 45"
+    }
+  },
+  {
+    "file": "event_flyer_1.jpg",
+    "doc_type": "event_flyer",
+    "label": "Event Flyer 1",
+    "fields": {
+      "event_name": "Cloned bifurcated toolset",
+      "event_date": "07/19/2026",
+      "event_time": "8:00 AM",
+      "location": "Will bit enter always single establish can institution treat standard else change try number.",
+      "organizer": "Murphy, Ramirez and Marsh",
+      "description": "An evening talk followed by an open Q&A. Light refreshments provided."
+    }
+  },
+  {
+    "file": "event_flyer_2.jpg",
+    "doc_type": "event_flyer",
+    "label": "Event Flyer 2",
+    "fields": {
+      "event_name": "Reactive intangible flexibility",
+      "event_date": "07/03/2026",
+      "event_time": "6:45 AM",
+      "location": "Can money draw body claim anyone cut find figure service face matter concern.",
+      "organizer": "Lara-Vang",
+      "description": "Join us for a community potluck. Bring a dish to share."
+    }
+  }
+]

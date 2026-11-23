@@ -5,6 +5,7 @@ from __future__ import annotations
 import json
 import random
 import uuid
+from collections.abc import Callable
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
@@ -48,8 +49,19 @@ class SyntheticSample:
 class DocumentGenerator:
     """Renders synthetic form images for a given document type."""
 
-    def __init__(self, schema_fields: dict[str, DocTypeSpec], seed: int = 42) -> None:
+    def __init__(
+        self,
+        schema_fields: dict[str, DocTypeSpec],
+        seed: int = 42,
+        label_hook: Callable[[str, dict[str, Any], random.Random], dict[str, Any]] | None = None,
+    ) -> None:
+        """`label_hook(doc_type, labels, rng)` may rewrite synthesized labels before rendering.
+
+        Training leaves it unset. The offline demo uses it to make values coherent
+        (totals that add up, due dates after invoice dates).
+        """
         self._schema = schema_fields
+        self._label_hook = label_hook
         self._rng = random.Random(seed)
         np.random.seed(seed)
         self._synthesizer = ValueSynthesizer(seed=seed)
@@ -62,6 +74,8 @@ class DocumentGenerator:
             raise ValueError(f"Unknown doc type: {doc_type!r}")
         spec = self._schema[doc_type]
         labels = self._synthesizer.synthesize_document(spec.fields)
+        if self._label_hook is not None:
+            labels = self._label_hook(doc_type, labels, self._rng)
         img = self._render(doc_type, spec, labels)
         img = self._augment(img)
         return SyntheticSample(doc_type=doc_type, image=img, labels=labels)
