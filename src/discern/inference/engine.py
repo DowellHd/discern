@@ -59,6 +59,7 @@ class InferenceEngine:
         import torch
         import torch.nn.functional as F
         import torchvision.transforms as T
+
         from discern.models.extractor import (
             CATEGORY_OPTIONS,
             DOC_TYPES,
