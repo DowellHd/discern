@@ -4,6 +4,80 @@
 
 Discern is a document-intelligence pipeline that processes photos and scans of paper church records — connection cards, prayer request cards, and weekly bulletins — and extracts structured, searchable data. The document domain is fully swappable via a single YAML config.
 
+## Demo
+
+**[▶ Watch Demo Video](#)** <!-- TODO: replace # with the demo video URL -->
+
+![Python](https://img.shields.io/badge/Python-3.11+-3776AB?logo=python&logoColor=white)
+![FastAPI](https://img.shields.io/badge/FastAPI-009688?logo=fastapi&logoColor=white)
+![PyTorch](https://img.shields.io/badge/PyTorch-EE4C2C?logo=pytorch&logoColor=white)
+![SQLAlchemy](https://img.shields.io/badge/SQLAlchemy-D71F00?logo=sqlalchemy&logoColor=white)
+![SQLite](https://img.shields.io/badge/Demo_DB-SQLite-003B57?logo=sqlite&logoColor=white)
+![Next.js](https://img.shields.io/badge/Next.js-16-000000?logo=nextdotjs&logoColor=white)
+![TypeScript](https://img.shields.io/badge/TypeScript-3178C6?logo=typescript&logoColor=white)
+
+The whole app runs locally with **no Postgres, no API keys, and no network**. In offline demo mode
+SQLite replaces Postgres, a mock engine replaces the model and the OCR/LLM backends (Tesseract,
+Ollama, Gemini, Anthropic), and the library opens pre-filled with 30 synthetic documents.
+
+### Run the demo
+
+```bash
+# 1. Clone
+git clone https://github.com/DowellHd/discern.git && cd discern
+
+# 2. Install the API (Python 3.11+; no torch needed)
+python -m venv .venv && source .venv/bin/activate
+pip install -r requirements-demo.txt
+
+# 3. Run it
+python main.py                  # API + docs → http://localhost:8000/docs
+```
+
+In a second terminal, start the UI (Node 20+):
+
+```bash
+cd frontend
+cp .env.demo .env.local && npm install && npm run dev     # → http://localhost:3000
+```
+
+`make demo` and `make demo-frontend` do the same. Open <http://localhost:3000>, click a sample under
+**Try a sample document**, then explore the **Library** and **Stats** tabs.
+
+**What you get**
+
+- A library of 30 documents across all nine templates (receipts, business cards, invoices,
+  connection and prayer cards, giving envelopes, notes, flyers, forms) with confidence scores,
+  follow-up statuses, hand-corrected fields, and a review queue
+- One-click extraction of 18 bundled sample documents (also in `demo-samples/`), shown with the
+  annotated overlay, editable fields, and vCard / iCal / expense-CSV exports
+- Search, filters, stats, and CSV export, all backed by the real API code
+
+**What demo mode is, and isn't**
+
+- Every document is synthetic. Nothing real is stored, and sensitive fields stay masked.
+- The bundled samples are recognised by image similarity and read back **exactly**. Any other file
+  you upload gets **illustrative** values: plausible and schema-valid, but unrelated to what is on
+  the page. They are given low confidence on purpose, so they land in the review queue.
+- The mock engine does not run the model. To run the real classifier locally (needs
+  `poetry install` for torch), set `DISCERN_OFFLINE_DEMO_REAL_MODEL=true`. OCR and LLM calls stay
+  mocked, so nothing leaves your machine either way.
+- Demo data lives in `data/demo/` (git-ignored). `python main.py --reset` rebuilds it.
+
+**Switching back to the real services**
+
+Run `python main.py --real`, or set `DISCERN_OFFLINE_DEMO=false`, or just use `make serve`. No code
+changes are needed; the real database, model, and OCR code are untouched and only bypassed while
+the demo flag is on. For the UI, delete `frontend/.env.local`.
+
+| Variable | Where | Meaning |
+|---|---|---|
+| `DISCERN_OFFLINE_DEMO` | API | Local mocks instead of Postgres, the model, OCR and LLMs. **Off by default** |
+| `DISCERN_DEMO_MODE` | API | Skip login and use a shared demo user (separate; defaults to on) |
+| `NEXT_PUBLIC_OFFLINE_DEMO` | UI | Show the "Try a sample document" row |
+| `NEXT_PUBLIC_DEMO_MODE` | UI | Hide the sign-in UI |
+| `NEXT_PUBLIC_BACK_SOON` | UI | `false` shows the app; the default shows the "Back Soon" page |
+
 ---
 
 ## Screenshots
