@@ -6,11 +6,13 @@ from pathlib import Path
 from typing import Any
 
 import yaml
-from pydantic import AliasChoices, Field, field_validator
+from pydantic import AliasChoices, Field, field_validator, model_validator
 from pydantic_settings import BaseSettings
 
 REPO_ROOT = Path(__file__).parents[2]
 CONFIGS_DIR = REPO_ROOT / "configs"
+DEMO_DATA_DIR = REPO_ROOT / "data" / "demo"
+DEMO_SAMPLES_DIR = REPO_ROOT / "demo-samples"
 
 
 class Settings(BaseSettings):
@@ -43,7 +45,28 @@ class Settings(BaseSettings):
     # Generate: python -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())"
     field_encryption_key: str = ""
 
+    # Offline demo (DISCERN_OFFLINE_DEMO=true): the whole stack runs locally with no external
+    # services. SQLite replaces Postgres, a mock engine replaces the model + OCR + LLM backends,
+    # and every request is answered from bundled synthetic data. Unset to use the real services.
+    # Distinct from `demo_mode` above, which only controls authentication.
+    offline_demo: bool = False
+    # With offline_demo on, optionally still run the real local classifier (needs torch).
+    # OCR and LLM calls stay mocked either way, so nothing leaves the machine.
+    offline_demo_real_model: bool = False
+
     model_config = {"env_prefix": "DISCERN_", "env_file": ".env", "extra": "ignore"}
+
+    @model_validator(mode="after")
+    def _isolate_offline_demo(self) -> Settings:
+        """Keep offline demo data away from real data and databases.
+
+        Seeding writes to the database and uploads, so even an inherited production
+        DATABASE_URL must never be used while the demo is on.
+        """
+        if self.offline_demo:
+            self.data_dir = DEMO_DATA_DIR
+            self.database_url = f"sqlite:///{DEMO_DATA_DIR / 'discern-demo.db'}"
+        return self
 
     @field_validator("database_url")
     @classmethod
